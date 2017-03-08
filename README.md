@@ -1,2 +1,2 @@
 # epoll_http_server
-epoll实现高并发http服务器
+epoll实现高并发http服务器，支持文件下载和文本文件浏览
