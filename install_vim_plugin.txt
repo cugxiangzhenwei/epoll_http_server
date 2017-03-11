@@ -1,0 +1,72 @@
+1.第一个插件pathogen
+mkdir -p ~/.vim/autoload ~/.vim/bundle && 
+curl -LSso ~/.vim/autoload/pathogen.vim https://tpo.pe/pathogen.vim
+在.vimrc中添加以下语句
+execute pathogen#infect()
+syntax on
+filetype plugin indent on
+
+2.auto-pairs
+git clone git://github.com/jiangmiao/auto-pairs.git ~/.vim/bundle/auto-pairs
+
+3.NERDTree
+git clone https://github.com/scrooloose/nerdtree.git ~/.vim/bundle
+在.vimrc中添加快捷键映射
+map <C-n> :NERDTree<CR>
+
+4.MiniBufExplorer
+kdir -p ~/.vim/bundle/minibufexplorer/plugin && wget "http://www.vim.org/scripts/download_script.php?src_id=3640" -O ~/.vim/bundle/minibufexplorer/plugin/minibufexpl.vim
+
+在~/.vimrc文件中加入如下命令
+let g:miniBufExplMaxSize = 2
+
+5.ctags安装，不是插件
+sudo apt-get install ctags
+用法：
+ctags -R --sort=yes --c++-kinds=+p --fields=+iaS --extra=+q --language-force=C++
+
+6.taglist
+cd ~/.vim/bundle && wget "http://www.vim.org/scripts/download_script.php?src_id=19574" -O taglist.zip && unzip taglist.zip -d taglist
+配置
+打开~/.vimrc，输入如下内容
+let Tlist_Show_One_File=1    " 只展示一个文件的taglist
+let Tlist_Exit_OnlyWindow=1  " 当taglist是最后以个窗口时自动退出
+let Tlist_Use_Right_Window=1 " 在右边显示taglist窗口
+let Tlist_Sort_Type="name"   " tag按名字排序
+
+7. OmniCppComplete C++语法补全插件
+这是一个对C++进行语法补全的插件，可以对函数、命名空间、类成员等进行补全，使用起来和绝大多数IDE差不多，不一样的是IDE为你做了很多你不知道的事情，而omni补全需要依赖tags文件，需要你用ctags命令自己生成
+,如下：
+ctags -R --sort=yes --c++-kinds=+p --fields=+iaS --extra=+q --language-force=C++
+
+cd ~/.vim/bundle && wget "http://www.vim.org/scripts/download_script.php?src_id=7722" -O omnicppcomplete.zip && unzip omnicppcomplete.zip -d omnicppcomplete
+
+配置
+打开~/.vimrc文件，输入
+filetype plugin indent on
+set completeopt=longest,menu
+let OmniCpp_NamespaceSearch = 2     " search namespaces in the current buffer   and in included files
+let OmniCpp_ShowPrototypeInAbbr = 1 " 显示函数参数列表
+let OmniCpp_MayCompleteScope = 1    " 输入 :: 后自动补全
+let OmniCpp_DefaultNamespaces = ["std", "_GLIBCXX_STD"]
+
+8. stl代码自动补全的办法
+对STL补全
+上面的方式只能对自己的代码进行补全，是当我们要使用其它库比如STL甚至是第三方库时就无法补全，原因很简单，我们只对自己的代码建立了tags文件，想要对其它库进行补全，就必须对它们的源代码建立tags文件，所幸的是vim的插件编写者们早已解决了这个需求，并且他们专门针对STL头文件进行了修改，以便能更好的适应omni的补全，首先下载STL源代码，地址为http://www.vim.org/scripts/script.php?script_id=2358，可通过如下命令下载并解压
+mkdir -p ~/.vim/tags && cd ~/.vim/tags && wget "http://www.vim.org/scripts/download_script.php?src_id=9178" -O - | tar jxvf -
+这样就将STL的源码下载到了~/.vim/tags/cpp_src目录下，我们在该目录下执行ctags命令
+
+ctags -R --sort=yes --c++-kinds=+p --fields=+iaS --extra=+q --language-force=C++
+这样就生成了~/.vim/tags/cpp_src/tags这个文件，然后打开~/.vimrc进行如下设置
+set tags+=~/.vim/tags/cpp_src/tags
+
+9. Vundle 插件管理神器安装
+git clone https://github.com/gmarik/vundle.git ~/.vim/bundle/vundle
+/.vimrc文件中加入下面内容：
+
+filetype off
+set rtp+=~/.vim/bundle/vundle/
+call vundle#rc()
+Bundle 'gmarik/vundle'
+Bundle '其他的 github 位置...'
+filetype plugin indent on
