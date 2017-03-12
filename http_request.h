@@ -26,6 +26,7 @@ struct http_Request
 	FILE * m_pFileServe;
 	long long m_iFileOffset;
 	long long m_iReadbytes;
+	long long m_iFinishedBytes;
 
 	int read_header();
 	int parse_header();

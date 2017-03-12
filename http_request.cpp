@@ -53,39 +53,53 @@ int list_dir_items(char ** pszDataOut,const char * pszWorkDir,const char * url)
 	strcpy(*pszDataOut,strData.c_str());	
 	return strData.length();
 }
-int cat(int client, FILE *resource,long long & iReadBytes) {
+int cat(int client, FILE *resource,long long iReadBytes) {
     //返回文件数据
-	printf("cat 开始发送文件...\n");
+	//printf("cat 开始发送文件...\n");
     char buf[1024];	
 	long long iFinished = 0;
 	int iReturn = 1;
-   	int iRead = fread(buf,sizeof(char),1024,resource); 
+	char * pData = buf;
+   	int iRead = fread(buf,sizeof(char),iReadBytes,resource); 
 	do{
 		if(iRead)
 		{
-			int iRev = send(client,buf,iRead,0);
-			if(iRev ==-1)
+			do
 			{
-				printf("cat function Send erro occur:%s\n",strerror(errno));
-				iReturn = -1;;
-				break;
-			}
-			else if(iRev ==0)
-			{
-				printf("client closed connect!\n");
-				iReturn = 0;
-				break;
-			}
-   			iFinished += iRead;
-			if(iFinished == iReadBytes)
-			{
-				break;
-			}
-			iRead = fread(buf,sizeof(char),1024,resource); 
+				int iRev = send(client,pData,iRead,0);
+				if(iRev ==-1)
+				{
+					printf("cat function Send erro occur:%s\n",strerror(errno));
+					iReturn = -1;
+					break;
+				}
+				else if(iRev ==0)
+				{
+					printf("client closed connect!\n");
+					iReturn = 0;
+					break;
+				}
+				iFinished += iRev;
+				if(iFinished == iReadBytes)
+				{
+					break;
+				}
+				if(iRev < iRead) // need send mutilple times
+				{
+					pData = buf + iRev; // calucate next begin
+					iRead = iRead - iRev; // calucate other bytes to need send	
+				}
+				else
+					break;
+
+			}while(1);
+			iReadBytes = iReadBytes - iRead;
+			iRead = fread(buf,sizeof(char),iReadBytes,resource); 
+			pData = buf;
 		}
 		
 	}while(iRead >0);
-	printf("cat 发送文件调用结束!\n");
+	//printf("cat 发送文件调用结束!\n");
 	return iReturn;
 }
 
@@ -124,6 +138,11 @@ void remove_request(int fd)
 		return;
 	
 	http_Request * req = iter->second;
+	if(req->m_pFileServe)
+	{
+		fclose(req->m_pFileServe);
+		req->m_pFileServe = NULL;
+	}
 	delete req;
 	g_requestMap.erase(iter);
 }
@@ -228,6 +247,7 @@ int http_Request::prepare_header()
 			m_pFileServe = fopen(strFullPath.c_str(),"r");
 			m_iFileOffset = iFileOffset;
 			m_iReadbytes =  iReadBytes;
+			m_iFinishedBytes = 0;
 			if(m_pFileServe==NULL)
 			{
 				printf("can't open file %s\n",strFullPath.c_str());
@@ -269,15 +289,25 @@ int http_Request::send_header()
 }
 int http_Request::send_data()
 {
-	printf("send data begin call ...\n");
+	//	printf("send data begin call ...\n");
 	int iRev = 1;
 	if(m_pFileServe!=NULL)
 	{
-		iRev = cat(m_fd,m_pFileServe,m_iReadbytes);
+		long long iRead = m_iReadbytes - m_iFinishedBytes;
+		if(iRead > DATA_SIZE_ONCE)
+			iRead = DATA_SIZE_ONCE; // once send 256
+		iRev = cat(m_fd,m_pFileServe,iRead);
 		if(iRev ==1)
 		{
-			fclose(m_pFileServe);
-			m_pFileServe = NULL;
+			m_iFinishedBytes += iRead;
+			if(m_iFinishedBytes == m_iReadbytes)
+			{
+				fclose(m_pFileServe);
+				m_pFileServe = NULL;	
+				printf("serve file %s finished\n",m_szURI);
+			}
+			else
+				return 1; // return 1 ,but not finish ,wait next call ,cotinue send file data
 		}
 	}
 	else
@@ -299,6 +329,6 @@ int http_Request::send_data()
 	}
 	if(iRev ==1)
 		m_iState = state_finish;
-	printf("send data  call finished!\n");
+ 	//	printf("send data  call finished!\n");
 	return iRev;
 }
