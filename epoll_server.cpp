@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include"http_request.h"
+#include"httpCommon.h"
 //函数声明
 //创建套接字并进行绑定
 static int socket_bind(int port);
@@ -66,7 +67,18 @@ int main(int argc,char *argv[])
 		PrintHelp();
 		return 0;
 	}   int  listenfd;
-    listenfd = socket_bind(iport);
+   SetHomeDir(strHome.c_str());
+	//忽略SIGPIPE信号的方法,避免socket关闭后，发送数据SIGPIPE信号导致进程退出
+	struct sigaction sa;
+	sa.sa_handler = SIG_IGN;//设定接受到指定信号后的动作为忽略
+	sa.sa_flags = 0;
+	if (sigemptyset(&sa.sa_mask) == -1 || //初始化信号集为空
+	sigaction(SIGPIPE, &sa, 0) == -1) { //屏蔽SIGPIPE信号
+	perror("failed to ignore SIGPIPE; sigaction");
+	exit(EXIT_FAILURE);
+	}
+	
+   listenfd = socket_bind(iport);
    if(listen(listenfd,LISTENQ)==-1)
 	{
 		perror("listen failed :");
@@ -153,7 +165,7 @@ static void handle_accpet(int epollfd,int listenfd)
     }
 }
 
-static void do_read(int epollfd,int fd,char *buf)
+static void do_read(int epollfd,int fd,char *)
 {
 	http_Request * req = find_request(fd);
 	if(!req)
@@ -189,11 +201,22 @@ static void do_read(int epollfd,int fd,char *buf)
 		}
 	}
 	if(req->m_iState == state_send_response)
-	{
 		modify_event(epollfd,fd,EPOLLOUT);	 // modify to write style ,send reponse
+}
+
+static void do_write(int epollfd,int fd,char *)
+{	
+	http_Request * req = find_request(fd);
+	if(!req)
+	{
+		fprintf(stderr,"erro ,find_request(%d) return NULL\n",fd);
+		return;
+	}
+	if(req->m_iState == state_send_response)
+	{
 		if(req->send_header() <=0)
 		{
-			
+			close(req->m_fd);
 			remove_request(fd);
 			delete_event(epollfd,fd,EPOLLOUT);
 		} 
@@ -202,8 +225,9 @@ static void do_read(int epollfd,int fd,char *buf)
 	{
 		if(req->send_data()<=0)
 		{
-			remove_request(fd);
+			close(req->m_fd);
 			delete_event(epollfd,fd,EPOLLOUT);
+			remove_request(fd);
 		}
 	}
 	if(req->m_iState == state_finish)
@@ -213,61 +237,6 @@ static void do_read(int epollfd,int fd,char *buf)
 		delete_event(epollfd,fd,EPOLLOUT);
 		printf("%d finish request!\n",fd);
 	}
-	return;	
-	int nread;
-    nread = read(fd,buf,MAXSIZE);
-    if (nread == -1)
-    {
-        perror("read error:");
-        close(fd);
-		remove_request(fd);
-        delete_event(epollfd,fd,EPOLLIN);
-    }
-    else if (nread == 0)
-    {
-        fprintf(stderr,"client close.\n");
-        close(fd);	
-		remove_request(fd);
-        delete_event(epollfd,fd,EPOLLIN);
-    }
-    else
-    {
-        printf("read message is : %s",buf);
-        //修改描述符对应的事件，由读改为写
-        modify_event(epollfd,fd,EPOLLOUT);
-    }
-}
-
-static void do_write(int epollfd,int fd,char *buf)
-{	
-	http_Request * req = find_request(fd);
-	if(!req)
-	{
-		fprintf(stderr,"erro ,find_request(%d) return NULL\n",fd);
-		return;
-	}
-    if(req->m_iState == state_send_response)
-	{
-		req->send_header();
-	}
-	else if(req->m_iState == state_send_data)
-	{
-		req->send_data();
-	}
-	return;
-
-    int nwrite;
-    nwrite = write(fd,buf,strlen(buf));
-    if (nwrite == -1)
-    {
-        perror("write error:");
-        close(fd);
-		remove_request(fd);
-        delete_event(epollfd,fd,EPOLLOUT);
-    }
-    else
-        modify_event(epollfd,fd,EPOLLIN);
-    memset(buf,0,MAXSIZE);
 }
 
 static void add_event(int epollfd,int fd,int state)

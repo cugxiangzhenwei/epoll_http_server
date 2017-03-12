@@ -20,6 +20,13 @@ struct http_Request
 	char   m_szURI[MAXSIZE];
 	std::string m_strReceiveHeaders;  //接收消息的htpp头
 	std::string m_strResponseHeaders; //发送的http头
+	char *m_szDataSend;
+	int  m_iDataLength;
+	// file paramters 
+	FILE * m_pFileServe;
+	long long m_iFileOffset;
+	long long m_iReadbytes;
+
 	int read_header();
 	int parse_header();
 	int prepare_header();
