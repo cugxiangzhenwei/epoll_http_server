@@ -11,47 +11,64 @@
 typedef std::map<int,http_Request *> RequestMapType;
 static RequestMapType g_requestMap;
 
-int list_dir_items(char ** pszDataOut,const char * pszWorkDir,const char * url)
+int list_dir_items(char * & pszDataOut,const char * pszWorkDir,const char * url)
 {
 	printf("list_dir_items调用...\n");
-	//sendheaders(client,url,"text/html",-1,-1,-1);
 	struct dirent * entry = NULL;
 	DIR * pDir = NULL;
     struct stat statbuf;
 	std::string strData = "<html><head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\"/></head>\n";
 	strData +="<body>\n";
 	pDir = opendir(pszWorkDir);
-	while(NULL!=(entry = readdir(pDir)))
+	if(pDir == NULL)
 	{
-	  char szFullPath[1024];
-	  sprintf(szFullPath,"%s%s",pszWorkDir,entry->d_name);
-	  printf("get one item [%s]\n",szFullPath);
-      lstat(szFullPath,&statbuf);
-      if( S_ISDIR(statbuf.st_mode) )
-      {
-		  if(strcmp(".",entry->d_name)==0 || strcmp("..",entry->d_name)==0)
-          continue;
+		strData += "you can't access this path!\n";
+		printf("can't opendir [%s]\n",pszWorkDir);
+	}
+	else
+	{
+		bool bIsEmpty = true;
+		while(NULL!=(entry = readdir(pDir)))
+		{
+		  char szFullPath[1024];
+		  sprintf(szFullPath,"%s%s",pszWorkDir,entry->d_name);
+		  printf("get one item [%s]\n",szFullPath);
+		  lstat(szFullPath,&statbuf);
+		  if( S_ISDIR(statbuf.st_mode) )
+		  {
+			  if(strcmp(".",entry->d_name)==0 || strcmp("..",entry->d_name)==0)
+				  continue;
 
-        char szBuffer[2048];
-		sprintf(szBuffer,"&nbsp;<A href=\"%s%s/\">%s</A>&nbsp;&nbsp;[DIR]<br/>"
-		,url,entry->d_name, entry->d_name);
-		strData += szBuffer;
-		strData +="\n";
-      }
-      else
-      {
-            char szBuffer[2048];
-			sprintf(szBuffer,"&nbsp;<A href=\"%s%s\">%s</A>&nbsp;&nbsp;%ld&nbsp;bytes<br/>"
-			,url,entry->d_name,entry->d_name,statbuf.st_size );
-		strData += szBuffer;
-		strData +="\n";
-      }
+				char szBuffer[2048];
+				sprintf(szBuffer,"&nbsp;<A href=\"%s%s/\">%s</A>&nbsp;&nbsp;[DIR]<br/>"
+				,url,entry->d_name, entry->d_name);
+				strData += szBuffer;
+				strData +="\n";
+				bIsEmpty = false;
+		  }
+		  else
+		  {
+				char szBuffer[2048];
+				sprintf(szBuffer,"&nbsp;<A href=\"%s%s\">%s</A>&nbsp;&nbsp;%ld&nbsp;bytes<br/>"
+				,url,entry->d_name,entry->d_name,statbuf.st_size );
+				strData += szBuffer;
+				strData +="\n";
+				bIsEmpty = false;
+		  }
+		}
+		if(bIsEmpty)
+			strData +="<center><font size=7 face=i\"黑体\" >当前目录为空!</font> </center>";
 	}
 	strData += "</body></html>";
-	printf("list_dir_items调用结束!\n");
-	*pszDataOut = (char *)malloc(strData.length());
-	strcpy(*pszDataOut,strData.c_str());	
-	return strData.length();
+	size_t iLen = strData.length();
+	pszDataOut = (char *)malloc(iLen+1);
+	if(pszDataOut == NULL)
+	{
+		printf("Failed to malloc memory %lu bytes\n",strData.length());
+		return -1;
+	}
+	strcpy(pszDataOut,strData.c_str());
+	return iLen;
 }
 int cat(int client, FILE *resource,long long iReadBytes) {
     //返回文件数据
@@ -211,7 +228,7 @@ int http_Request::prepare_header()
 	{
 		printf("枚举目录内的文件：%s\n",strFullPath.c_str());
 		m_strResponseHeaders = GetResponseHeader("","text/html",-1,-1,-1);
-		m_iDataLength = list_dir_items(&m_szDataSend,strFullPath.c_str(),m_szURI);
+		m_iDataLength = list_dir_items(m_szDataSend,strFullPath.c_str(),m_szURI);
 		chdir(strFullPath.c_str());
 	}
 	else
@@ -289,7 +306,6 @@ int http_Request::send_header()
 }
 int http_Request::send_data()
 {
-	//	printf("send data begin call ...\n");
 	int iRev = 1;
 	if(m_pFileServe!=NULL)
 	{
@@ -312,6 +328,7 @@ int http_Request::send_data()
 	}
 	else
 	{
+//		printf("m_szDataSend=%p\n",m_szDataSend);
 		assert(m_szDataSend!=NULL);
 		int iSendLen = 0;
 		int iAll =  m_iDataLength;
