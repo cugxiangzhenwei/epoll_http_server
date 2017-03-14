@@ -11,6 +11,7 @@
 #include <sys/types.h>
 #include"http_request.h"
 #include"httpCommon.h"
+#include"redis_api.h"
 //函数声明
 //创建套接字并进行绑定
 static int socket_bind(int port);
@@ -77,9 +78,10 @@ int main(int argc,char *argv[])
 	perror("failed to ignore SIGPIPE; sigaction");
 	exit(EXIT_FAILURE);
 	}
-	
-   listenfd = socket_bind(iport);
-   if(listen(listenfd,LISTENQ)==-1)
+	RedisAPI * redis = RedisAPI::Instance();
+	redis->connect("127.0.0.1",6379,2000);
+    listenfd = socket_bind(iport);
+    if(listen(listenfd,LISTENQ)==-1)
 	{
 		perror("listen failed :");
 		exit(0);

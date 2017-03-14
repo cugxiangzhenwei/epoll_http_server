@@ -8,12 +8,28 @@
 #include"httpCommon.h"
 #include"UrlCode.h"
 #include<assert.h>
+#include"redis_api.h"
 typedef std::map<int,http_Request *> RequestMapType;
 static RequestMapType g_requestMap;
 
 int list_dir_items(char * & pszDataOut,const char * pszWorkDir,const char * url)
 {
 	printf("list_dir_items调用...\n");
+	std::string strCache = RedisAPI::Instance()->get_string(pszWorkDir);
+	if(!strCache.empty())
+	{
+		size_t iLen = strCache.length();
+		pszDataOut = (char *)malloc(iLen+1);
+		if(pszDataOut == NULL)
+		{
+			printf("Failed to malloc memory %lu bytes\n",strCache.length());
+			return -1;
+		}
+		strcpy(pszDataOut,strCache.c_str());
+		printf("Get dir items from redis cache key : %s\n",pszDataOut);
+		return iLen;
+	}
+	
 	struct dirent * entry = NULL;
 	DIR * pDir = NULL;
     struct stat statbuf;
@@ -68,6 +84,7 @@ int list_dir_items(char * & pszDataOut,const char * pszWorkDir,const char * url)
 		return -1;
 	}
 	strcpy(pszDataOut,strData.c_str());
+	RedisAPI::Instance()->set_string(pszWorkDir,strData);
 	return iLen;
 }
 int cat(int client, FILE *resource,long long iReadBytes) {
