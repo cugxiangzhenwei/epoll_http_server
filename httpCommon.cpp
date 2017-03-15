@@ -191,7 +191,7 @@ std::string GetResponseHeader( const char */*filename*/,const char *pszFileType,
 {
     char buf[1024];
 	bool bIsPartial = false;
-    if(iStreamLen >0 &&  (iRangeEnd - iRangeBegin) != iStreamLen)
+    if(iStreamLen >0 && iRangeBegin >=0 && iRangeEnd >=0 && (iRangeEnd - iRangeBegin) != iStreamLen)
 		bIsPartial = true;
 	if(!bIsPartial)
 		strcpy(buf, "HTTP/1.0 200 OK\r\n");

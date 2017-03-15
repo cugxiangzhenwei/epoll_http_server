@@ -245,6 +245,8 @@ int http_Request::prepare_header()
 	if(S_ISDIR(st.st_mode))
 	{
 		printf("枚举目录内的文件：%s\n",strFullPath.c_str());
+		if(strFullPath[strFullPath.size()-1]!='/')
+			strFullPath.append(1,'/');
 		m_iDataLength = list_dir_items(m_szDataSend,strFullPath.c_str(),m_szURI);
 		m_strResponseHeaders = GetResponseHeader("","text/html",m_iDataLength,-1,-1);
 		chdir(strFullPath.c_str());
