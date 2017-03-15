@@ -1,6 +1,7 @@
 #include<string>
 #include<map>
 #include"global_def.h"
+#include"httpCommon.h"
 typedef enum
 {
 	state_read_header = 0,
@@ -18,6 +19,7 @@ struct http_Request
 	int m_epollfd;
 	http_process_state m_iState; // 请求当前所处的状态,根据当前状态执行对应的处理函数
 	char   m_szURI[MAXSIZE];
+	HTTP_METHOD m_http_method; //http请求类型
 	std::string m_strReceiveHeaders;  //接收消息的htpp头
 	std::string m_strResponseHeaders; //发送的http头
 	char *m_szDataSend;

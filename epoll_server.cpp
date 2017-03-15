@@ -160,7 +160,7 @@ static void handle_accpet(int epollfd,int listenfd)
         perror("accpet error:");
     else
     {
-        printf("accept a new client: %s:%d\n",inet_ntoa(cliaddr.sin_addr),cliaddr.sin_port);
+        printf("--------------------------->>>>>>>>>>>>\naccept a new client: %s:%d\n",inet_ntoa(cliaddr.sin_addr),cliaddr.sin_port);
         //添加一个客户描述符和事件
 		add_request(epollfd,clifd);
         add_event(epollfd,clifd,EPOLLIN);
@@ -237,7 +237,7 @@ static void do_write(int epollfd,int fd,char *)
 		close(fd);
 		remove_request(fd);
 		delete_event(epollfd,fd,EPOLLOUT);
-		printf("%d finish request!\n",fd);
+		printf("%d finish request!\n<<<<<<<<<<--------------------------------------\n",fd);
 	}
 }
 

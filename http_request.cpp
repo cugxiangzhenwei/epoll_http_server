@@ -212,6 +212,7 @@ int http_Request::parse_header()
 {
 	printf("headers in:\n%s\n",m_strReceiveHeaders.c_str());
 	std::string strUrl = GetURL(m_strReceiveHeaders);
+	m_http_method = GetMethod(m_strReceiveHeaders);
 	if(strUrl.empty())
 	{
 		printf("can't get url from header!\n");
@@ -219,7 +220,7 @@ int http_Request::parse_header()
 	}
 	std::string strDecode = UrlDecode(strUrl);
 	strcpy(m_szURI,strDecode.c_str());
-	printf(	"url:%s\nDecodeUrl:%s\n",strUrl.c_str(),m_szURI);
+	printf(	"url:%s\nDecodeUrl:%s\nHTTP请求方法类型:%s\n",strUrl.c_str(),m_szURI,HTTP_METHOD_STR[m_http_method]);
 	m_iState = state_prepare_response;
 	return 1;
 }

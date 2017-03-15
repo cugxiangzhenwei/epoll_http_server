@@ -16,12 +16,18 @@
 #include<errno.h>
 typedef enum
 {
- HTTP_GET =0,
+ HTTP_NONE = 0,
+ HTTP_OPTIONS,
+ HTTP_HEAD,
+ HTTP_GET,
  HTTP_POST,
  HTTP_PUT,
- HTTP_NONE
+ HTTP_DELETE,
+ HTTP_TRACE,
+ HTTP_CONNECT
 }HTTP_METHOD;
 
+extern const char* HTTP_METHOD_STR[];
 
 #define SERVER_STRING "Server:向振伟开发服httpd/0.1.1\r\n"
 

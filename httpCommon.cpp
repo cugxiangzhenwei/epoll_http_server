@@ -1,6 +1,18 @@
 #include"httpCommon.h"
 #include<unistd.h>
 std::string g_strHomeDir;
+const char *HTTP_METHOD_STR[] = {
+"NONE HTTP METHOD",
+"OPTIONS",
+"HEAD",
+"GET",
+"POST",
+"PUT",
+"DELETE",
+"TRACE",
+"CONNECT",
+ NULL
+};
 void SetHomeDir(const char * pszStrHomeDir)
 {
 	if(pszStrHomeDir == NULL)
@@ -17,11 +29,10 @@ void SetHomeDir(const char * pszStrHomeDir)
 }
 HTTP_METHOD GetMethod(const std::string & strHeader)
 {
-	const char * patterns[] = {"GET","POST","PUT",NULL};
 	HTTP_METHOD hm = HTTP_NONE;
-	for(int i=0; patterns[i]!=NULL;i++)
+	for(int i=0; HTTP_METHOD_STR[i]!=NULL;i++)
 	{
-		if(strncmp(patterns[i],strHeader.c_str(),strlen(patterns[i]))==0)
+		if(strncmp(HTTP_METHOD_STR[i],strHeader.c_str(),strlen(HTTP_METHOD_STR[i]))==0)
 		{
 			hm = (HTTP_METHOD)(i);		
 			break;
@@ -247,9 +258,7 @@ std::string get_404_ResponseHeader(std::string & strPage404Data)
     
 	//html主体内容
 	strPage404Data = "<HTML><TITLE>Not Found</TITLE>\r\n";
-	strPage404Data +="<BODY><P>The server could not fulfill\r\n";
-    strPage404Data +="yoiur request because the resource specified\r\n";
-	strPage404Data +="is unavailable or nonexistent.\r\n";
+	strPage404Data +="<BODY><P>请求的页面无法找到\r\n";
 	strPage404Data +="</BODY></HTML>\r\n";
 	return strHeader;
 }
