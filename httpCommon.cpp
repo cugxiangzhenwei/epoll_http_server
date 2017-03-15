@@ -49,7 +49,11 @@ std::string GetURL(const std::string & strHeader)
 		return "";
 	}
 //	printf("GetURL:%d before while\n",__LINE__);
-	int iPos = 3; // from third character to find url
+
+	int iPos = 0;
+	while(!IsSpace(strHeader[iPos]))
+ 		iPos ++; // find first blank space
+
 	while(IsSpace(strHeader[iPos]))
  		iPos ++; // skip blank space
 	
