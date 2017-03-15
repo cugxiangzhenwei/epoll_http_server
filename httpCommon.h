@@ -29,7 +29,7 @@ typedef enum
 
 extern const char* HTTP_METHOD_STR[];
 
-#define SERVER_STRING "Server:向振伟开发服httpd/0.1.1\r\n"
+#define SERVER_STRING "Server:xiangzhenwei httpd/0.1.1\r\n"
 
 /* http 工作目录*/
 extern std::string g_strHomeDir;
