@@ -202,7 +202,7 @@ std::string GetResponseHeader( const char */*filename*/,const char *pszFileType,
 	std::string strHeader = buf;
     strHeader += SERVER_STRING;
 
-	sprintf(buf, "Content-Type: %s\r\n",pszFileType);
+	sprintf(buf, "Content-Type: %s;charset=utf-8\r\n",pszFileType);
 	strHeader += buf;
 
 	sprintf(buf,"Content-Length: %lld\r\n",iStreamLen);

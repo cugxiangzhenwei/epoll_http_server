@@ -109,7 +109,7 @@ int cat(int client, FILE *resource,long long iReadBytes) {
 				}
 				else if(iRev ==0)
 				{
-					printf("client closed connect!\n");
+					printf("client %d closed connect!\n",client);
 					iReturn = 0;
 					break;
 				}
@@ -150,7 +150,7 @@ void _add_request(http_Request * req)
 	if(!req) return;
 	g_requestMap.insert(std::make_pair(req->m_fd,req));
 }
-http_Request * add_request(int epollfd,int fd)
+http_Request * add_request(int epollfd,int fd,const char * ip,int iport)
 {
 	http_Request * req = new http_Request;
 	req->m_fd = fd;
@@ -161,6 +161,9 @@ http_Request * add_request(int epollfd,int fd)
 	req->m_pFileServe = NULL;
 	req->m_szDataSend = NULL;
 	req->m_iDataLength = 0;
+	req->m_iClientPort = iport;
+	strcpy(req->m_ClientIp,ip);
+//	bzero(req->m_ClientIp,sizeof(char)*128);
 	bzero(req->m_szURI,sizeof(char)*MAXSIZE);
 	_add_request(req);
 	return req;
@@ -186,7 +189,7 @@ int http_Request::read_header()
 	int iRev = recv(m_fd,&c,1,0);
 	if(iRev ==0)
 	{
-		printf("client %d closed!\n",m_fd);
+		printf("client %s:%d closed!\n",m_ClientIp,m_iClientPort);
 		close(m_fd);
 		return 0;
 	}
