@@ -161,6 +161,7 @@ http_Request * add_request(int epollfd,int fd,const char * ip,int iport)
 	req->m_pFileServe = NULL;
 	req->m_szDataSend = NULL;
 	req->m_iDataLength = 0;
+	req->m_iContent_Length = -1;
 	req->m_iClientPort = iport;
 	strcpy(req->m_ClientIp,ip);
 //	bzero(req->m_ClientIp,sizeof(char)*128);
@@ -224,12 +225,90 @@ int http_Request::parse_header()
 	std::string strDecode = UrlDecode(strUrl);
 	strcpy(m_szURI,strDecode.c_str());
 	printf(	"url:%s\nDecodeUrl:%s\nHTTP请求方法类型:%s\n",strUrl.c_str(),m_szURI,HTTP_METHOD_STR[m_http_method]);
+	if(m_http_method == HTTP_POST)
+	{
+		printf("begin to read body data！\n");
+		m_iState = state_read_body;
+	}
+	else
+		m_iState = state_prepare_response;
+	return 1;
+}
+int http_Request::read_body()
+{
+	//	printf("read_body begin calll...\n");
+	if(m_iContent_Length == -1)
+	{
+		const char * pContentLength = strstr(m_strReceiveHeaders.c_str(),"Content-Length");
+		if(pContentLength!=NULL)
+		{
+			sscanf(pContentLength,"Content-Length: %lld",&m_iContent_Length);
+			printf("Content-Length:%lld\n",m_iContent_Length);
+		}
+		else
+		{
+			m_iContent_Length = 0;
+			printf("Content-Length参数未指定！\n");
+		}
+	}
+	char c;
+	int iRev = recv(m_fd,&c,1,0);
+//	printf("recv return data:%c,iRev = %d\n",c,iRev);
+	if(iRev ==0)
+	{
+		printf("client %s:%d closed!\n",m_ClientIp,m_iClientPort);
+		close(m_fd);
+		return 0;
+	}
+	else if(iRev == -1)
+	{
+		printf("%d recv error:%s\n",m_fd,strerror(errno));
+		close(m_fd);
+		return -1;
+	}
+	else
+	{
+		m_strBodyData.append(1,c);
+//		fprintf(stdout,"%c",c);
+//		fflush(stdout);
+		int iLen = m_strBodyData.length();
+		if(m_iContent_Length >0 && iLen==m_iContent_Length)
+			m_iState = state_parse_body;
+	}
+	return 1;
+}
+int http_Request::parse_body()
+{
+	printf("\nparse_body begin call...\n");
+	printf("post body data is:\n%s\n",m_strBodyData.c_str());
 	m_iState = state_prepare_response;
 	return 1;
 }
-int http_Request::prepare_header()
+int http_Request:: prepare_post_response()
 {
-	printf("prepare reponse header!\n");
+	printf("prepare_post_response begin call...\n");
+	printf("post request url:%s,post data:%s\n",m_szURI,m_strBodyData.c_str());
+	if(strcasecmp(m_szURI,"/login")==0)
+	{
+		std::string strData ="{token:\"1234567890\",id:1,name=\"xiangzhenwei\"}";
+		m_iDataLength = strData.size();
+		m_szDataSend = (char * )malloc(m_iDataLength);
+		strcpy(m_szDataSend,strData.c_str());
+		m_strResponseHeaders = GetResponseHeader("","application/json",m_iDataLength,-1,-1);
+	}
+	else
+	{
+		std::string strData;
+		m_strResponseHeaders = get_404_ResponseHeader(strData,m_szURI);
+		m_iDataLength =  strData.size();
+		m_szDataSend = (char * )malloc(m_iDataLength);
+		strcpy(m_szDataSend,strData.c_str());
+	}	
+	m_iState =state_send_response;
+	return 1;
+}
+int http_Request::prepare_get_response()
+{
 	std::string strFullPath = g_strHomeDir + m_szURI;
 	printf("get resource full path:%s,iSockClient:%d\n",strFullPath.c_str(),m_fd);
 	struct stat st;
@@ -237,7 +316,7 @@ int http_Request::prepare_header()
 	{
 		printf("%s路径无法找到\n",strFullPath.c_str());
 		std::string strData;
-		m_strResponseHeaders = get_404_ResponseHeader(strData);
+		m_strResponseHeaders = get_404_ResponseHeader(strData,m_szURI);
 		m_iDataLength =  strData.size();
 		m_szDataSend = (char * )malloc(m_iDataLength);
 		strcpy(m_szDataSend,strData.c_str());
@@ -303,7 +382,20 @@ int http_Request::prepare_header()
 	m_iState = state_send_response;
 	return 1;
 }
-int http_Request::send_header()
+int http_Request::prepare_response()
+{
+	printf("prepare reponse header!\n");
+	if(m_http_method == HTTP_GET)
+		return prepare_get_response();
+	else if(m_http_method == HTTP_POST)
+		return prepare_post_response();
+	else
+	{
+		printf("not supported response type:%s\n",HTTP_METHOD_STR[m_http_method]);
+		return -1;
+	}
+}
+int http_Request::send_response()
 {
 	printf("send response:\n%s\n",m_strResponseHeaders.c_str());
 	int iSendLen = 0;

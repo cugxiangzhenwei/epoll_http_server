@@ -252,7 +252,7 @@ void not_found(int client) {
     send(client, buf, strlen(buf), 0);
 }
 
-std::string get_404_ResponseHeader(std::string & strPage404Data)
+std::string get_404_ResponseHeader(std::string & strPage404Data,const char * uri)
 {
     //返回http 404协议
 	std::string strHeader = "HTTP/1.0 404 NOT FOUND\r\n";
@@ -262,7 +262,8 @@ std::string get_404_ResponseHeader(std::string & strPage404Data)
     
 	//html主体内容
 	strPage404Data = "<HTML><TITLE>Not Found</TITLE>\r\n";
-	strPage404Data +="<BODY><P>请求的页面无法找到\r\n";
+	strPage404Data +="<BODY><P>请求的页面[" + std::string(uri);
+	strPage404Data +="]无法找到\r\n";
 	strPage404Data +="</BODY></HTML>\r\n";
 	return strHeader;
 }

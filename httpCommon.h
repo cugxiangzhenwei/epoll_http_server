@@ -69,7 +69,7 @@ void sendheaders(int client, const char *filename,const char *pszFileType,long l
 std::string GetResponseHeader( const char */*filename*/,const char *pszFileType,long long iStreamLen,long long iRangeBegin,long long iRangeEnd);
 /* 发送请求，通知客户端页面无法找到，响应码为404*/
 void not_found(int client);
-std::string get_404_ResponseHeader(std::string & strPage404Data);
+std::string get_404_ResponseHeader(std::string & strPage404Data,const char * uri);
 /*
 * @brief 根据后缀名获取请求资源的类型，用于填充http响应头中的Content-Type字段
 * @param pszFilename 请求的资源文件名

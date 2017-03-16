@@ -184,6 +184,7 @@ static void do_read(int epollfd,int fd,char *)
 		{
 			remove_request(fd);
         	delete_event(epollfd,fd,EPOLLIN);
+			return;
 		}
 	}
 	if(req->m_iState == state_parse_header)
@@ -193,15 +194,37 @@ static void do_read(int epollfd,int fd,char *)
 			close(fd);
 			remove_request(fd);
 			delete_event(epollfd,fd,EPOLLIN);
+			return;
 		}
 	}
-	if(req->m_iState == state_prepare_response) //准备回应了
+	if(req->m_iState == state_read_body)
 	{
-		if(req->prepare_header()<=0)
+		if(req->read_body()<=0)
 		{
 			close(fd);
 			remove_request(fd);
 			delete_event(epollfd,fd,EPOLLIN);
+			return;
+		}
+	}
+	if(req->m_iState == state_parse_body)
+	{
+		if(req->parse_body()<=0)
+		{
+			close(fd);
+			remove_request(fd);
+			delete_event(epollfd,fd,EPOLLIN);
+			return;
+		}
+	}
+	if(req->m_iState == state_prepare_response) //准备回应了
+	{
+		if(req->prepare_response()<=0)
+		{
+			close(fd);
+			remove_request(fd);
+			delete_event(epollfd,fd,EPOLLIN);
+			return;
 		}
 	}
 	if(req->m_iState == state_send_response)
@@ -218,7 +241,7 @@ static void do_write(int epollfd,int fd,char *)
 	}
 	if(req->m_iState == state_send_response)
 	{
-		if(req->send_header() <=0)
+		if(req->send_response() <=0)
 		{
 			close(req->m_fd);
 			remove_request(fd);
