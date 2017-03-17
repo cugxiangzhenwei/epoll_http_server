@@ -86,6 +86,32 @@ int main(int argc,char *argv[])
 		perror("listen failed :");
 		exit(0);
 	}
+	int iRev = fork();
+	if(iRev ==-1)
+	{
+		printf("fork error :%s\n",strerror(errno));
+	}
+	else if(iRev ==0)
+	{
+		printf("sub process fock return!\n");
+	}
+	else 
+	{
+			printf("main process fork return!\n");
+	}
+	iRev = fork();
+	if(iRev ==-1)
+	{
+		printf("fork2 error :%s\n",strerror(errno));
+	}
+	else if(iRev ==0)
+	{
+		printf("sub process fock2 return!\n");
+	}
+	else 
+	{
+			printf("main process fork2 return!\n");
+	}
     do_epoll(listenfd);
     return 0;
 }
@@ -162,7 +188,7 @@ static void handle_accpet(int epollfd,int listenfd)
     {
 		std::string ip = inet_ntoa(cliaddr.sin_addr);
 		int iport = cliaddr.sin_port;
-        printf("--------------------------->>>>>>>>>>>>\naccept a new client: %s:%d\n",ip.c_str(),iport);
+        printf("--------------------------->>>>>>>>>>>>\naccept a new client: %s:%d,current process id:%d\n",ip.c_str(),iport,getpid());
         //添加一个客户描述符和事件
 		add_request(epollfd,clifd,ip.c_str(),iport);
         add_event(epollfd,clifd,EPOLLIN);
