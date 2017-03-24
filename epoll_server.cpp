@@ -129,7 +129,9 @@ int main(int argc,char *argv[])
 			printf("main process fork2 return!\n");
 	}
 	*/
+//	freopen("log.txt","w+",stdout);
     do_epoll(listenfd);
+//	fclose(stdout);
     return 0;
 }
 
@@ -200,7 +202,7 @@ handle_events(int epollfd,struct epoll_event *events,int num,int listenfd,char *
         else if (events[i].events & EPOLLOUT)
             do_write(epollfd,fd,buf);
     }
-	printf("handle_events return!\n");
+	printf("handle_events return!\n<----------------------------------------------------->\n");
 }
 static void handle_accpet(int epollfd,int listenfd)
 {

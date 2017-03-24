@@ -8,6 +8,7 @@
 #include"httpCommon.h"
 #include"UrlCode.h"
 #include<assert.h>
+#include <sys/sendfile.h>
 #include"redis_api.h"
 typedef std::map<int,http_Request *> RequestMapType;
 static RequestMapType g_requestMap;
@@ -87,11 +88,37 @@ int list_dir_items(char * & pszDataOut,const char * pszWorkDir,const char * url)
 	RedisAPI::Instance()->set_string(pszWorkDir,strData);
 	return iLen;
 }
-int cat(int client, FILE *resource,long long iReadBytes,long long & iFinished) {
+int cat(int client, FILE *resource,long long iReadBytes,long long & iFinished,long long iFileOffset) 
+{
     //返回文件数据
 	printf("cat 开始发送文件...\n");
-    char buf[1024];	
 	int iReturn = 1;
+	// new type to send file to socket,do need swap kenel to user then to kenel space
+	int filefd = fileno(resource);
+ 	struct stat stat_buf;  
+    fstat( filefd, &stat_buf ); 
+	iFinished = 0;
+	long long iAllBytes = iReadBytes;
+	while(iFinished <stat_buf.st_size && iFinished < iAllBytes)
+	{
+		off_t oft = iFileOffset + iFinished;// 计算本次发送的起始位置	
+		iReadBytes = iAllBytes - iFinished; // all other need read bytes,may be not to file end , eg 206 partial-Coent
+		if(iReadBytes > DATA_SIZE_ONCE)
+			iReadBytes = DATA_SIZE_ONCE;
+
+	//	printf("begin to send file,offset=%ld,iReadBytes=%lld\n",oft,iReadBytes);
+		if((iReturn= sendfile(client, filefd, &oft,iReadBytes)) == -1)
+		{
+			printf("Send file error:%s\n",strerror(errno));
+			return -1;
+		}
+	//	printf("sendfile return:%d\n",iReturn);
+		iFinished += iReturn;
+	}
+	printf("cat 发送文件完毕!\n");
+	return 1;
+	// 以下是老的方式发送文件，从内核拷贝到用户空间，然后又到socket的内核空间,以下代码是发送整个文件的，发送部分文件需要修改
+    char buf[1024];	
 	char *pData = NULL;
 	iReturn = fseek(resource,iFinished,SEEK_SET);
 	if(iReturn!=0)
@@ -442,10 +469,7 @@ int http_Request::send_data()
 	int iRev = 1;
 	if(m_pFileServe!=NULL)
 	{
-		long long iRead = m_iReadbytes - m_iFinishedBytes;
-		if(iRead > DATA_SIZE_ONCE)
-			iRead = DATA_SIZE_ONCE; // once send 256
-		iRev = cat(m_fd,m_pFileServe,iRead,m_iFinishedBytes);
+		iRev = cat(m_fd,m_pFileServe,m_iReadbytes,m_iFinishedBytes,m_iFileOffset);
 		if(iRev ==1)
 		{
 			if(m_iFinishedBytes == m_iReadbytes)
