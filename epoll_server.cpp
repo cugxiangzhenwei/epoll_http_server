@@ -178,7 +178,7 @@ handle_events(int epollfd,struct epoll_event *events,int num,int listenfd,char *
 {
     int i;
     int fd;
-	printf("handle_events call ...,intput n=%d\n",num);
+//	printf("handle_events call ...,intput n=%d\n",num);
     //进行选好遍历
     for (i = 0;i < num;i++)
     {
@@ -198,25 +198,25 @@ handle_events(int epollfd,struct epoll_event *events,int num,int listenfd,char *
         else if (events[i].events & EPOLLOUT)
             do_write(epollfd,fd,buf);
     }
-	printf("handle_events return!\n<----------------------------------------------------->\n");
+//	printf("handle_events return!\n<----------------------------------------------------->\n");
 }
 static void handle_accpet(int epollfd,int listenfd)
 {
 	//  在ET模式下必须循环accept到返回-1为止
-	printf("handle_accpet call...\n");
+//	printf("handle_accpet call...\n");
 	while(1)
 	{
 		int clifd;
 		struct sockaddr_in cliaddr;
 		socklen_t  cliaddrlen;
-		printf("begin accept...\n");
+//		printf("begin accept...\n");
 		clifd = accept(listenfd,(struct sockaddr*)&cliaddr,&cliaddrlen);
-		printf("end accept!\n");
+//		printf("end accept!\n");
 		if (clifd == -1)
 		{
 			if((errno == EAGAIN) || (errno == EWOULDBLOCK))
 			{
-				printf("end accept loop!\n");
+				//printf("end accept loop!\n");
 				break;
 			}
 			else
@@ -244,7 +244,7 @@ static void handle_accpet(int epollfd,int listenfd)
 			add_event(epollfd,clifd,EPOLLIN|EPOLLET);// set edge-triggled mode
 		}
   }
-	printf("handle_accpet call finished!\n");
+//	printf("handle_accpet call finished!\n");
 }
 static void do_read(int epollfd,int fd,char *)
 {

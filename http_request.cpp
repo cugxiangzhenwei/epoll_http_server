@@ -15,7 +15,7 @@ static RequestMapType g_requestMap;
 
 int list_dir_items(char * & pszDataOut,const char * pszWorkDir,const char * url)
 {
-	printf("list_dir_items调用...\n");
+	printf("list_dir_items[%s]...\n",pszWorkDir);
 	std::string strCache = RedisAPI::Instance()->get_string(pszWorkDir);
 	if(!strCache.empty())
 	{
@@ -27,7 +27,7 @@ int list_dir_items(char * & pszDataOut,const char * pszWorkDir,const char * url)
 			return -1;
 		}
 		strcpy(pszDataOut,strCache.c_str());
-		printf("Get dir items from redis cache key : %s\n",pszDataOut);
+		printf("Get dir items from redis cache key : %s\n",pszWorkDir);
 		return iLen;
 	}
 	
@@ -49,7 +49,7 @@ int list_dir_items(char * & pszDataOut,const char * pszWorkDir,const char * url)
 		{
 		  char szFullPath[1024];
 		  sprintf(szFullPath,"%s%s",pszWorkDir,entry->d_name);
-		  printf("get one item [%s]\n",szFullPath);
+	//	  printf("get one item [%s]\n",szFullPath);
 		  lstat(szFullPath,&statbuf);
 		  if( S_ISDIR(statbuf.st_mode) )
 		  {
@@ -86,6 +86,7 @@ int list_dir_items(char * & pszDataOut,const char * pszWorkDir,const char * url)
 	}
 	strcpy(pszDataOut,strData.c_str());
 	RedisAPI::Instance()->set_string(pszWorkDir,strData);
+	printf("list_dir_items[%s] return iLen=%ld\n",pszWorkDir,iLen);
 	return iLen;
 }
 int cat(int client, FILE *resource,long long iReadBytes,long long & iFinished,long long iFileOffset) 
@@ -116,7 +117,7 @@ int cat(int client, FILE *resource,long long iReadBytes,long long & iFinished,lo
             }  
             else if(errno==EAGAIN) /* EAGAIN : Resource temporarily unavailable*/   
             {  
-                sleep(1);//等待一秒，希望发送缓冲区能得到释放  
+                usleep(50);//等待一秒，希望发送缓冲区能得到释放  
                 printf("[SeanSend]error errno==EAGAIN continue\n");  
                 continue;  
             }  
@@ -233,9 +234,9 @@ int http_Request::read_header()
 	printf("read_header begin call ...\n");
 	while(1)
 	{
-		printf("read_heade recv data begin call...\n");
+//		printf("read_heade recv data begin call...\n");
 		int iRev = recv(m_fd,szBuf,1023,0);
-		printf("read_heade recv return %d\n",iRev);
+//		printf("read_heade recv return %d\n",iRev);
 		if(iRev ==0)
 		{
 			printf("client %s:%d closed!\n",m_ClientIp,m_iClientPort);
@@ -266,6 +267,7 @@ int http_Request::read_header()
 			}
 		}
 	}
+	printf("read_header return!\n");
 	return 1;
 }
 int http_Request::parse_header()
@@ -503,6 +505,12 @@ int http_Request::send_data()
 		char * pData  = m_szDataSend + m_iSendCompleteLen;
 		int iLenSendThis = m_iDataLength - m_iSendCompleteLen;
 		assert(iLenSendThis>0);
+		//发送缓冲区
+		int nSendBuf = iLenSendThis; //设置为iLenSendThis
+		setsockopt(m_fd,SOL_SOCKET,SO_SNDBUF,(const char*)&nSendBuf,sizeof(int));
+        //在发送数据的时，不执行由系统缓冲区到socket缓冲区的拷贝，以提高程序的性能：
+		int nZero = 0;
+		setsockopt(m_fd,SOL_SOCKET,SO_SNDBUF,(char *)&nZero,sizeof(nZero));
 		int iLen = send(m_fd,pData,iLenSendThis,0);
 		if(iLen == -1)
 		{
@@ -522,7 +530,7 @@ int http_Request::send_data()
 		}
 		else
 		{
-			printf("send_data send:%dbytes,but return %dbytes\n",iLenSendThis,iLen);
+//			printf("send_data send:%dbytes,but return %dbytes\n",iLenSendThis,iLen);
 		}
 		m_iSendCompleteLen += iLen;
 	}
