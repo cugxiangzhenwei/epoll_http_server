@@ -109,7 +109,22 @@ int cat(int client, FILE *resource,long long iReadBytes,long long & iFinished,lo
 	//	printf("begin to send file,offset=%ld,iReadBytes=%lld\n",oft,iReadBytes);
 		if((iReturn= sendfile(client, filefd, &oft,iReadBytes)) == -1)
 		{
-			printf("Send file error:%s\n",strerror(errno));
+			if(errno==EINTR) /* 中断错误 我们继续写*/   
+            {  
+                printf("[SeanSend]error errno==EINTR continue\n");  
+                continue;  
+            }  
+            else if(errno==EAGAIN) /* EAGAIN : Resource temporarily unavailable*/   
+            {  
+                sleep(1);//等待一秒，希望发送缓冲区能得到释放  
+                printf("[SeanSend]error errno==EAGAIN continue\n");  
+                continue;  
+            }  
+            else /* 其他错误 没有办法,只好退了*/   
+            {  
+				printf("Send file error:error=%d,%s\n",errno,strerror(errno));
+                return(-1);  
+            }  
 			return -1;
 		}
 	//	printf("sendfile return:%d\n",iReturn);
