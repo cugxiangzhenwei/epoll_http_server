@@ -33,13 +33,16 @@ extern const char* HTTP_METHOD_STR[];
 
 /* http 工作目录*/
 extern std::string g_strHomeDir;
-
+extern int 	g_iListMode; // 0-All ,1-images
 inline bool IsSpace(char c)
  {
 	return ((int)(c)==32);
  }
 /*设置http工作目录 */
 void SetHomeDir(const char * pszStrHomeDir);
+
+/*设置目录展示方式，0为所有，1为图片 */
+void SetListMode(int iMode);
 /*
 *从header中判断请求的http类型，是GET，PUT还是其它的类型
  */

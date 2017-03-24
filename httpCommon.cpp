@@ -1,6 +1,7 @@
 #include"httpCommon.h"
 #include<unistd.h>
 std::string g_strHomeDir;
+int g_iListMode; // 0-All ,1-images
 const char *HTTP_METHOD_STR[] = {
 "NONE HTTP METHOD",
 "OPTIONS",
@@ -26,6 +27,16 @@ void SetHomeDir(const char * pszStrHomeDir)
 		g_strHomeDir = pszStrHomeDir;
 
 	printf("设置工作目录为：%s\n",g_strHomeDir.c_str());
+}
+void SetListMode(int iMode)
+{
+	if(iMode >0) iMode =1;
+	else iMode = 0;
+	g_iListMode = iMode;
+	if(g_iListMode==0)
+		printf("当前模式显示所有文件！\n");
+	else
+		printf("当前模式显示图片！\n");
 }
 HTTP_METHOD GetMethod(const std::string & strHeader)
 {

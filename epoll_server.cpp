@@ -53,6 +53,7 @@ int main(int argc,char *argv[])
 	}
 	int i=1;
 	int iport = -1;
+	int iMode = 0;
 	std::string strHome = "";
 	while(argv[i]!=NULL)
 	{
@@ -66,6 +67,11 @@ int main(int argc,char *argv[])
 			i++;
 			strHome = argv[i];
 		}
+		else if(strcasecmp(argv[i],"-m")==0 && i < argc -1)
+		{
+			i++;
+			iMode =  atoi(argv[i]);
+		}
 		else
 			i++;
 	}
@@ -75,7 +81,8 @@ int main(int argc,char *argv[])
 		PrintHelp();
 		return 0;
 	}   int  listenfd;
-   SetHomeDir(strHome.c_str());
+    SetHomeDir(strHome.c_str());
+	SetListMode(iMode);
 	//忽略SIGPIPE信号的方法,避免socket关闭后，发送数据SIGPIPE信号导致进程退出
 	struct sigaction sa;
 	sa.sa_handler = SIG_IGN;//设定接受到指定信号后的动作为忽略

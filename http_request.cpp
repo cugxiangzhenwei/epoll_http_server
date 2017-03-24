@@ -5,14 +5,149 @@
 #include<stdio.h>
 #include<errno.h>
 #include<unistd.h>
-#include"httpCommon.h"
-#include"UrlCode.h"
 #include<assert.h>
 #include <sys/sendfile.h>
+#include<vector>
 #include"redis_api.h"
+#include"httpCommon.h"
+#include"UrlCode.h"
 typedef std::map<int,http_Request *> RequestMapType;
 static RequestMapType g_requestMap;
 
+std::string strJsFunResizeImg ="\
+<script language=\"JavaScript\">\
+		function resizeimg(obj,maxW,maxH)\
+		{\
+			 var imgW=obj.width;\
+			 var imgH=obj.height;\
+			 if(imgW>maxW||imgH>maxH)\
+			 {       \
+					  var ratioA=imgW/maxW;\
+					  var ratioB=imgH/maxH;\
+					  if(ratioA>ratioB)\
+					  {\
+							   imgW=maxW;\
+							   imgH=imgH / ratioA;\
+					  }\
+					  else\
+					  {\
+							   imgH=maxH;\
+							   imgW=imgW / ratioB;\
+					  }\
+					  obj.width=imgW;\
+					  obj.height=imgH;\
+			 }\
+		}\
+	</script>\
+";
+int list_dir_images(char * & pszDataOut,const char * pszWorkDir,const char * url)
+{
+	printf("list_dir_images[%s]...\n",pszWorkDir);
+	std::string strCache = RedisAPI::Instance()->get_string(pszWorkDir);
+	if(!strCache.empty())
+	{
+		size_t iLen = strCache.length();
+		pszDataOut = (char *)malloc(iLen+1);
+		if(pszDataOut == NULL)
+		{
+			printf("Failed to malloc memory %lu bytes\n",strCache.length());
+			return -1;
+		}
+		strcpy(pszDataOut,strCache.c_str());
+		printf("Get dir items from redis cache key : %s\n",pszWorkDir);
+		return iLen;
+	}
+	
+	struct dirent * entry = NULL;
+	DIR * pDir = NULL;
+    struct stat statbuf;
+	std::string strData = "<html><head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\"/></head>";
+	strData += "<body>";
+	pDir = opendir(pszWorkDir);
+	std::vector<std::string> vFolders;
+	std::vector<std::string> vImages;
+	while(NULL!=(entry = readdir(pDir)))
+	{
+	  char szFullPath[1024];
+	  sprintf(szFullPath,"%s%s",pszWorkDir,entry->d_name);
+	//  printf("get one item [%s]\n",szFullPath);
+      lstat(szFullPath,&statbuf);
+      if( S_ISDIR(statbuf.st_mode) )
+      {
+		  if(strcmp(".",entry->d_name)==0 || strcmp("..",entry->d_name)==0)
+          continue;
+		 vFolders.push_back(szFullPath);
+      }
+      else
+      {
+		char * pExt = strstr(entry->d_name,".");
+		if(pExt && (
+		strcasecmp(pExt,".jpg")==0 ||
+		strcasecmp(pExt,".jpeg")==0||
+		strcasecmp(pExt,".png")==0||
+		strcasecmp(pExt,".gif")==0))
+		{
+		 vImages.push_back(szFullPath);
+		}	
+      }
+	}
+	if(vImages.size() >0)
+	{
+		strData += strJsFunResizeImg;
+	//	send(client,strJsFunResizeImg.c_str(),strJsFunResizeImg.length(),0);	
+	}
+	for(size_t i=0;i<vFolders.size();i++)
+	{
+		char * pName = strrchr((char*)vFolders[i].c_str(),'/');
+		if(pName)
+		{
+			char name[256];
+			strcpy(name,pName+1);
+			char szBuffer[2048];
+			sprintf(szBuffer,"&nbsp;<A href=\"%s%s/\">%s</A>&nbsp;&nbsp;[DIR]<br/>"
+			,url,name,name);
+			strData += szBuffer;
+			//send(client,szBuffer,strlen(szBuffer),0);
+		}
+	}
+	if(vImages.size()>0)
+	{
+		strData += "<div align=\"center\">";
+		strData += "<div id=\"imgbox\" style=\"width:1920px;height:1080px;border:1px solid #CCCCCC\">";
+	}
+	for(size_t i=0;i<vImages.size();i++)
+	{
+		char * pName = strrchr((char*)vImages[i].c_str(),'/');
+		if(pName)
+		{
+			char name[256];
+			strcpy(name,pName+1);
+			char szBuffer[2048];
+			sprintf(szBuffer,"<a href='%s%s'><img src=%s%s onload=\"resizeimg(this,1200,800)\"></a>\n",url,name,url,name);
+			strData += szBuffer;
+		}
+		else
+		{
+			printf("can't get filename of file :%s\n",vImages[i].c_str());
+		}
+	}
+	if(vImages.size()>0)
+	{
+   		strData += "</div></div>";
+	}
+	strData += "</body></html>";
+	size_t iLen = strData.length();
+	pszDataOut = (char *)malloc(iLen+1);
+	if(pszDataOut == NULL)
+	{
+		printf("Failed to malloc memory %lu bytes\n",strData.length());
+		return -1;
+	}
+	strcpy(pszDataOut,strData.c_str());
+	RedisAPI::Instance()->set_string(pszWorkDir,strData);
+	printf("list_dir_images[%s] return iLen=%ld\n",pszWorkDir,iLen);
+	return iLen;
+}
 int list_dir_items(char * & pszDataOut,const char * pszWorkDir,const char * url)
 {
 	printf("list_dir_items[%s]...\n",pszWorkDir);
@@ -391,7 +526,10 @@ int http_Request::prepare_get_response()
 		printf("枚举目录内的文件：%s\n",strFullPath.c_str());
 		if(strFullPath[strFullPath.size()-1]!='/')
 			strFullPath.append(1,'/');
-		m_iDataLength = list_dir_items(m_szDataSend,strFullPath.c_str(),m_szURI);
+		if(g_iListMode==0)
+			m_iDataLength = list_dir_items(m_szDataSend,strFullPath.c_str(),m_szURI);
+		else
+			m_iDataLength = list_dir_images(m_szDataSend,strFullPath.c_str(),m_szURI);
 		m_strResponseHeaders = GetResponseHeader("","text/html",m_iDataLength,-1,-1);
 		chdir(strFullPath.c_str());
 	}
