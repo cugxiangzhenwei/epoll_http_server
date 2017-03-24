@@ -33,6 +33,7 @@ struct http_Request
 	std::string m_strResponseHeaders; //发送的http头
 	char *m_szDataSend;
 	int  m_iDataLength;
+	int  m_iSendCompleteLen;
 	// file paramters 
 	FILE * m_pFileServe;
 	long long m_iFileOffset;

@@ -9,6 +9,7 @@
 #include <sys/epoll.h>
 #include <unistd.h>
 #include <sys/types.h>
+#include <fcntl.h>
 #include"http_request.h"
 #include"httpCommon.h"
 #include"redis_api.h"
@@ -37,6 +38,12 @@ void PrintHelp()
 	printf("请指定端口号和工作路径！\n示例:\n./s.exe -p 5000 -d /Usr/xiangzhenwei\n");
 }
 
+void clean_connection(int fd,int epollfd)
+{
+	close(fd);
+	remove_request(fd);
+	delete_event(epollfd,fd,EPOLLIN);
+}
 int main(int argc,char *argv[])
 {
  	if(argc <3)
@@ -81,12 +88,21 @@ int main(int argc,char *argv[])
 	RedisAPI * redis = RedisAPI::Instance();
 	redis->connect("127.0.0.1",6379,2000);
     listenfd = socket_bind(iport);
+	//设置为非阻塞
+	int x;  
+	x=fcntl(listenfd,F_GETFL,0);  
+	int s = fcntl(listenfd,F_SETFL,x | O_NONBLOCK);  
+	if ( s == -1 )
+	{
+		printf("error to set socket:%d to nonblock,%s\n",listenfd,strerror(errno));
+		abort ();
+	}
     if(listen(listenfd,LISTENQ)==-1)
 	{
 		perror("listen failed :");
 		exit(0);
 	}
-	int iRev = fork();
+	/*int iRev = fork();
 	if(iRev ==-1)
 	{
 		printf("fork error :%s\n",strerror(errno));
@@ -112,6 +128,7 @@ int main(int argc,char *argv[])
 	{
 			printf("main process fork2 return!\n");
 	}
+	*/
     do_epoll(listenfd);
     return 0;
 }
@@ -148,7 +165,7 @@ static void do_epoll(int listenfd)
     //创建一个描述符
     epollfd = epoll_create(FDSIZE);
     //添加监听描述符事件
-    add_event(epollfd,listenfd,EPOLLIN);
+    add_event(epollfd,listenfd,EPOLLIN|EPOLLET); //set Edge-triggled
     for ( ; ; )
     {
         //获取已经准备好的描述符事件
@@ -163,11 +180,19 @@ handle_events(int epollfd,struct epoll_event *events,int num,int listenfd,char *
 {
     int i;
     int fd;
+	printf("handle_events call ...,intput n=%d\n",num);
     //进行选好遍历
     for (i = 0;i < num;i++)
     {
         fd = events[i].data.fd;
         //根据描述符的类型和事件类型进行处理
+			 if ( ( events[i].events & EPOLLERR ) ||( events[i].events & EPOLLHUP ) )
+            {
+                fprintf ( stderr, "epoll error\n" );
+                close ( events[i].data.fd );
+                continue;
+            }
+		
         if ((fd == listenfd) &&(events[i].events & EPOLLIN))
             handle_accpet(epollfd,listenfd);
         else if (events[i].events & EPOLLIN)
@@ -175,26 +200,54 @@ handle_events(int epollfd,struct epoll_event *events,int num,int listenfd,char *
         else if (events[i].events & EPOLLOUT)
             do_write(epollfd,fd,buf);
     }
+	printf("handle_events return!\n");
 }
 static void handle_accpet(int epollfd,int listenfd)
 {
-    int clifd;
-    struct sockaddr_in cliaddr;
-    socklen_t  cliaddrlen;
-    clifd = accept(listenfd,(struct sockaddr*)&cliaddr,&cliaddrlen);
-    if (clifd == -1)
-        perror("accpet error:");
-    else
-    {
-		std::string ip = inet_ntoa(cliaddr.sin_addr);
-		int iport = cliaddr.sin_port;
-        printf("--------------------------->>>>>>>>>>>>\naccept a new client: %s:%d,current process id:%d\n",ip.c_str(),iport,getpid());
-        //添加一个客户描述符和事件
-		add_request(epollfd,clifd,ip.c_str(),iport);
-        add_event(epollfd,clifd,EPOLLIN);
-    }
+	//  在ET模式下必须循环accept到返回-1为止
+	printf("handle_accpet call...\n");
+	while(1)
+	{
+		int clifd;
+		struct sockaddr_in cliaddr;
+		socklen_t  cliaddrlen;
+		printf("begin accept...\n");
+		clifd = accept(listenfd,(struct sockaddr*)&cliaddr,&cliaddrlen);
+		printf("end accept!\n");
+		if (clifd == -1)
+		{
+			if((errno == EAGAIN) || (errno == EWOULDBLOCK))
+			{
+				printf("end accept loop!\n");
+				break;
+			}
+			else
+			{
+				perror("accpet error:");
+				break;
+			}
+		}
+		else
+		{
+			std::string ip = inet_ntoa(cliaddr.sin_addr);
+			int iport = cliaddr.sin_port;
+			printf("--------------------------->>>>>>>>>>>>\naccept a new client: %s:%d,current process id:%d\n",ip.c_str(),iport,getpid());
+			//添加一个客户描述符和事件
+			add_request(epollfd,clifd,ip.c_str(),iport);
+			//设置为非阻塞
+			int x;  
+			x=fcntl(clifd,F_GETFL,0);  
+			int s = fcntl(clifd,F_SETFL,x | O_NONBLOCK);  
+			if ( s == -1 )
+			{
+				printf("error to set socket:%d to nonblock,%s\n",clifd,strerror(errno));
+				abort ();
+			}
+			add_event(epollfd,clifd,EPOLLIN|EPOLLET);// set edge-triggled mode
+		}
+  }
+	printf("handle_accpet call finished!\n");
 }
-
 static void do_read(int epollfd,int fd,char *)
 {
 	http_Request * req = find_request(fd);
@@ -208,8 +261,6 @@ static void do_read(int epollfd,int fd,char *)
 	{
 		if(req->read_header()<=0)
 		{
-			remove_request(fd);
-        	delete_event(epollfd,fd,EPOLLIN);
 			return;
 		}
 	}
@@ -217,9 +268,7 @@ static void do_read(int epollfd,int fd,char *)
 	{
 		if(req->parse_header()<=0)
 		{
-			close(fd);
-			remove_request(fd);
-			delete_event(epollfd,fd,EPOLLIN);
+			clean_connection(fd,epollfd);
 			return;
 		}
 	}
@@ -227,9 +276,7 @@ static void do_read(int epollfd,int fd,char *)
 	{
 		if(req->read_body()<=0)
 		{
-			close(fd);
-			remove_request(fd);
-			delete_event(epollfd,fd,EPOLLIN);
+			clean_connection(fd,epollfd);
 			return;
 		}
 	}
@@ -237,9 +284,7 @@ static void do_read(int epollfd,int fd,char *)
 	{
 		if(req->parse_body()<=0)
 		{
-			close(fd);
-			remove_request(fd);
-			delete_event(epollfd,fd,EPOLLIN);
+			clean_connection(fd,epollfd);
 			return;
 		}
 	}
@@ -247,14 +292,12 @@ static void do_read(int epollfd,int fd,char *)
 	{
 		if(req->prepare_response()<=0)
 		{
-			close(fd);
-			remove_request(fd);
-			delete_event(epollfd,fd,EPOLLIN);
+			clean_connection(fd,epollfd);
 			return;
 		}
 	}
 	if(req->m_iState == state_send_response)
-		modify_event(epollfd,fd,EPOLLOUT);	 // modify to write style ,send reponse
+		modify_event(epollfd,fd,EPOLLOUT|EPOLLET);	 // modify to write style ,send reponse
 }
 
 static void do_write(int epollfd,int fd,char *)
@@ -269,26 +312,23 @@ static void do_write(int epollfd,int fd,char *)
 	{
 		if(req->send_response() <=0)
 		{
-			close(req->m_fd);
-			remove_request(fd);
-			delete_event(epollfd,fd,EPOLLOUT);
+			clean_connection(fd,epollfd);
+			return;
 		} 
 	}
 	if(req->m_iState == state_send_data)
 	{
 		if(req->send_data()<=0)
 		{
-			close(req->m_fd);
-			delete_event(epollfd,fd,EPOLLOUT);
-			remove_request(fd);
+			clean_connection(fd,epollfd);
+			return;
 		}
 	}
 	if(req->m_iState == state_finish)
 	{
-		close(fd);
 		printf("%s:%d finish request!\n<<<<<<<<<<--------------------------------------\n",req->m_ClientIp,req->m_iClientPort);
-		remove_request(fd);
-		delete_event(epollfd,fd,EPOLLOUT);
+		clean_connection(fd,epollfd);
+		return;
 	}
 }
 

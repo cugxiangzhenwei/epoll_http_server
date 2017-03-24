@@ -87,54 +87,54 @@ int list_dir_items(char * & pszDataOut,const char * pszWorkDir,const char * url)
 	RedisAPI::Instance()->set_string(pszWorkDir,strData);
 	return iLen;
 }
-int cat(int client, FILE *resource,long long iReadBytes) {
+int cat(int client, FILE *resource,long long iReadBytes,long long & iFinished) {
     //返回文件数据
-	//printf("cat 开始发送文件...\n");
+	printf("cat 开始发送文件...\n");
     char buf[1024];	
-	long long iFinished = 0;
 	int iReturn = 1;
-	char * pData = buf;
-   	int iRead = fread(buf,sizeof(char),iReadBytes,resource); 
-	do{
-		if(iRead)
+	char *pData = NULL;
+	iReturn = fseek(resource,iFinished,SEEK_SET);
+	if(iReturn!=0)
+	{
+		printf("error to seek pos:%lld\n",iFinished);
+		return iReturn;
+	}
+	while(1) // loop to read data
+	{
+		int iRead = fread(buf,sizeof(char),iReadBytes,resource); 
+		if(iRead<=0)
 		{
-			do
+			if(feof(resource))
+				break;
+			if(ferror(resource))
 			{
-				int iRev = send(client,pData,iRead,0);
-				if(iRev ==-1)
-				{
-					printf("cat function Send erro occur:%s\n",strerror(errno));
-					iReturn = -1;
-					break;
-				}
-				else if(iRev ==0)
-				{
-					printf("client %d closed connect!\n",client);
-					iReturn = 0;
-					break;
-				}
-				iFinished += iRev;
-				if(iFinished == iReadBytes)
-				{
-					break;
-				}
-				if(iRev < iRead) // need send mutilple times
-				{
-					pData = buf + iRev; // calucate next begin
-					iRead = iRead - iRev; // calucate other bytes to need send	
-				}
-				else
-					break;
-
-			}while(1);
-			iReadBytes = iReadBytes - iRead;
-			iRead = fread(buf,sizeof(char),iReadBytes,resource); 
-			pData = buf;
+				printf("fread error occur:%s\n",strerror(errno));
+				iReturn = -1;
+				break;
+			}
 		}
-		
-	}while(iRead >0);
-	//printf("cat 发送文件调用结束!\n");
-	return iReturn;
+		int iOffSet = 0;
+		int iRev = 0;
+		while(iOffSet < iRead)// loop to send finish this read data
+		{
+			pData = buf + iOffSet;
+			iRev = send(client,pData,iRead - iOffSet,0);
+			if(iRev ==-1)
+			{
+				printf("cat function Send erro occur:%s\n",strerror(errno));
+				return  -1;
+			}
+			else if(iRev ==0)
+			{
+				printf("client %d closed connect!\n",client);
+				return 0;
+			}
+			iOffSet += iRev;
+			iFinished += iRev;
+		}
+	}
+	printf("cat 发送文件完毕!\n");
+	return 1;
 }
 
 
@@ -162,6 +162,7 @@ http_Request * add_request(int epollfd,int fd,const char * ip,int iport)
 	req->m_szDataSend = NULL;
 	req->m_iDataLength = 0;
 	req->m_iContent_Length = -1;
+	req->m_iSendCompleteLen = 0;
 	req->m_iClientPort = iport;
 	strcpy(req->m_ClientIp,ip);
 //	bzero(req->m_ClientIp,sizeof(char)*128);
@@ -186,28 +187,41 @@ void remove_request(int fd)
 }
 int http_Request::read_header()
 {	
-	char c;
-	int iRev = recv(m_fd,&c,1,0);
-	if(iRev ==0)
+	char szBuf[1024];
+	printf("read_header begin call ...\n");
+	while(1)
 	{
-		printf("client %s:%d closed!\n",m_ClientIp,m_iClientPort);
-		close(m_fd);
-		return 0;
-	}
-	else if(iRev == -1)
-	{
-		printf("%d recv error:%s\n",m_fd,strerror(errno));
-		close(m_fd);
-		return -1;
-	}
-	else
-	{
-		m_strReceiveHeaders.append(1,c);
-		int iLen = m_strReceiveHeaders.length();
-		if(iLen >4 && m_strReceiveHeaders[iLen-2] == '\r' && c=='\n')
+		printf("read_heade recv data begin call...\n");
+		int iRev = recv(m_fd,szBuf,1023,0);
+		printf("read_heade recv return %d\n",iRev);
+		if(iRev ==0)
 		{
-			if(m_strReceiveHeaders[iLen-3]=='\n' && m_strReceiveHeaders[iLen-4]=='\r')
-				m_iState = state_parse_header; // 接收http头完毕，设置下一阶段为解析http头
+			printf("client %s:%d closed!\n",m_ClientIp,m_iClientPort);
+			return 0;
+		}
+		else if(iRev == -1)
+		{
+			if(EAGAIN == errno || EWOULDBLOCK==errno)
+					break; // header readfinished
+
+			printf("%d recv error:%s\n",m_fd,strerror(errno));
+			return -1;
+		}
+		else
+		{
+			szBuf[iRev]='\0';
+			m_strReceiveHeaders += szBuf;
+			//printf("header:%s\n",m_strReceiveHeaders.c_str());
+			int iLen = m_strReceiveHeaders.length();
+			char c = szBuf[iRev-1];
+			if(iLen >4 && m_strReceiveHeaders[iLen-2] == '\r' && c=='\n')
+			{
+				if(m_strReceiveHeaders[iLen-3]=='\n' && m_strReceiveHeaders[iLen-4]=='\r')
+				{
+					m_iState = state_parse_header; // 接收http头完毕，设置下一阶段为解析http头
+					break;
+				}
+			}
 		}
 	}
 	return 1;
@@ -251,29 +265,33 @@ int http_Request::read_body()
 			printf("Content-Length参数未指定！\n");
 		}
 	}
-	char c;
-	int iRev = recv(m_fd,&c,1,0);
-//	printf("recv return data:%c,iRev = %d\n",c,iRev);
-	if(iRev ==0)
+	char szBuf[1024];
+	while(1)
 	{
-		printf("client %s:%d closed!\n",m_ClientIp,m_iClientPort);
-		close(m_fd);
-		return 0;
-	}
-	else if(iRev == -1)
-	{
-		printf("%d recv error:%s\n",m_fd,strerror(errno));
-		close(m_fd);
-		return -1;
-	}
-	else
-	{
-		m_strBodyData.append(1,c);
-//		fprintf(stdout,"%c",c);
-//		fflush(stdout);
-		int iLen = m_strBodyData.length();
-		if(m_iContent_Length >0 && iLen==m_iContent_Length)
-			m_iState = state_parse_body;
+		int iRev = recv(m_fd,szBuf,1023,0);
+		if(iRev ==0)
+		{
+			printf("client %s:%d closed!\n",m_ClientIp,m_iClientPort);
+			close(m_fd);
+			return 0;
+		}
+		else if(iRev == -1)
+		{
+			if(EAGAIN == errno || EWOULDBLOCK==errno)
+				break; // body data read finished
+
+			printf("%d recv error:%s\n",m_fd,strerror(errno));
+			close(m_fd);
+			return -1;
+		}
+		else
+		{
+			szBuf[iRev] = '\0';
+			m_strBodyData += szBuf;
+			int iLen = m_strBodyData.length();
+			if(m_iContent_Length >0 && iLen==m_iContent_Length)
+				m_iState = state_parse_body;
+		}
 	}
 	return 1;
 }
@@ -427,10 +445,9 @@ int http_Request::send_data()
 		long long iRead = m_iReadbytes - m_iFinishedBytes;
 		if(iRead > DATA_SIZE_ONCE)
 			iRead = DATA_SIZE_ONCE; // once send 256
-		iRev = cat(m_fd,m_pFileServe,iRead);
+		iRev = cat(m_fd,m_pFileServe,iRead,m_iFinishedBytes);
 		if(iRev ==1)
 		{
-			m_iFinishedBytes += iRead;
 			if(m_iFinishedBytes == m_iReadbytes)
 			{
 				fclose(m_pFileServe);
@@ -443,25 +460,37 @@ int http_Request::send_data()
 	}
 	else
 	{
-//		printf("m_szDataSend=%p\n",m_szDataSend);
 		assert(m_szDataSend!=NULL);
-		int iSendLen = 0;
-		int iAll =  m_iDataLength;
-		char * pData = m_szDataSend;
-		while(iSendLen < iAll)
+		char * pData  = m_szDataSend + m_iSendCompleteLen;
+		int iLenSendThis = m_iDataLength - m_iSendCompleteLen;
+		assert(iLenSendThis>0);
+		int iLen = send(m_fd,pData,iLenSendThis,0);
+		if(iLen == -1)
 		{
-			pData  = m_szDataSend + iSendLen;
-			int iLen = send(m_fd,pData,1,0);
-			if(iLen <= 0)
-				return iLen; //error ,client closed or error occured
-			iSendLen += iLen;
+			if(EAGAIN == errno || EWOULDBLOCK==errno)
+			{
+				printf("send_data io not ready\n");
+				return 1; // io not ready
+			}
+			printf("erro to send data:%s\n",strerror(errno));
+			return -1; //error occured
 		}
-		printf("send data finished!\n");
-		free(m_szDataSend);
-		m_szDataSend = NULL;
+		else if(iLen ==0)
+		{
+			printf("client closed!\n");
+			return 0; //client closed 
+		
+		}
+		else
+		{
+			printf("send_data send:%dbytes,but return %dbytes\n",iLenSendThis,iLen);
+		}
+		m_iSendCompleteLen += iLen;
 	}
-	if(iRev ==1)
+	if(m_iSendCompleteLen == m_iDataLength)
+	{
+ 		printf("send data  call finished!\n");
 		m_iState = state_finish;
- 	//	printf("send data  call finished!\n");
+	}
 	return iRev;
 }
