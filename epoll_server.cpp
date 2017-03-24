@@ -102,33 +102,29 @@ int main(int argc,char *argv[])
 		perror("listen failed :");
 		exit(0);
 	}
-	/*int iRev = fork();
-	if(iRev ==-1)
+	int iProcessCount = 6;
+	int a = 0;
+	while((iProcessCount = iProcessCount/2)>0)
 	{
-		printf("fork error :%s\n",strerror(errno));
+		a++;
 	}
-	else if(iRev ==0)
+	printf("fock %d times\n",a);
+	for(int i=0;i<a;i++)
 	{
-		printf("sub process fock return!\n");
+		int iRev = fork();
+		if(iRev ==-1)
+		{
+			printf("fork error :%s\n",strerror(errno));
+		}
+		else if(iRev ==0)
+		{
+			printf("sub process fock return!\n");
+		}
+		else 
+		{
+				printf("main process fork return!\n");
+		}
 	}
-	else 
-	{
-			printf("main process fork return!\n");
-	}
-	iRev = fork();
-	if(iRev ==-1)
-	{
-		printf("fork2 error :%s\n",strerror(errno));
-	}
-	else if(iRev ==0)
-	{
-		printf("sub process fock2 return!\n");
-	}
-	else 
-	{
-			printf("main process fork2 return!\n");
-	}
-	*/
 //	freopen("log.txt","w+",stdout);
     do_epoll(listenfd);
 //	fclose(stdout);

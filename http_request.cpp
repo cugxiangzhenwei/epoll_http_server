@@ -57,7 +57,7 @@ int list_dir_items(char * & pszDataOut,const char * pszWorkDir,const char * url)
 				  continue;
 
 				char szBuffer[2048];
-				sprintf(szBuffer,"&nbsp;<A href=\"%s%s/\">%s</A>&nbsp;&nbsp;[DIR]<br/>"
+				sprintf(szBuffer,"&nbsp;<A href=\"%s%s/\">%400s</A>&nbsp;&nbsp;[DIR]<br/>"
 				,url,entry->d_name, entry->d_name);
 				strData += szBuffer;
 				strData +="\n";
@@ -66,7 +66,7 @@ int list_dir_items(char * & pszDataOut,const char * pszWorkDir,const char * url)
 		  else
 		  {
 				char szBuffer[2048];
-				sprintf(szBuffer,"&nbsp;<A href=\"%s%s\">%s</A>&nbsp;&nbsp;%ld&nbsp;bytes<br/>"
+				sprintf(szBuffer,"&nbsp;<A href=\"%s%s\">%400s</A>&nbsp;&nbsp;%ld&nbsp;bytes<br/>"
 				,url,entry->d_name,entry->d_name,statbuf.st_size );
 				strData += szBuffer;
 				strData +="\n";
