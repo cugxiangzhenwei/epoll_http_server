@@ -233,7 +233,7 @@ int cat(int client, FILE *resource,long long iReadBytes,long long & iFinished,lo
 	int filefd = fileno(resource);
  	struct stat stat_buf;  
     fstat( filefd, &stat_buf ); 
-	iFinished = 0;
+	//	iFinished = 0;
 	long long iAllBytes = iReadBytes;
 	while(iFinished <stat_buf.st_size && iFinished < iAllBytes)
 	{
@@ -252,16 +252,16 @@ int cat(int client, FILE *resource,long long iReadBytes,long long & iFinished,lo
             }  
             else if(errno==EAGAIN) /* EAGAIN : Resource temporarily unavailable*/   
             {  
-                usleep(50);//等待一秒，希望发送缓冲区能得到释放  
-    //            printf("[SeanSend]error errno==EAGAIN continue\n");  
-                continue;  
+              //  usleep(50);//等待一秒，希望发送缓冲区能得到释放  
+                printf("[SeanSend]error errno==EAGAIN wait epoll write ready\n");  
+               // continue;
+				return 1;
             }  
             else /* 其他错误 没有办法,只好退了*/   
             {  
 				printf("Send file error:error=%d,%s\n",errno,strerror(errno));
-                return(-1);  
+                return -1;  
             }  
-			return -1;
 		}
 	//	printf("sendfile return:%d\n",iReturn);
 		iFinished += iReturn;
