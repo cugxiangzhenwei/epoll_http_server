@@ -124,6 +124,19 @@ std::string get_oneline(int iSocket,bool & bError)
 	free(pData);
 	return str;
 }
+bool IsKeepAlive(const std::string & strHeader)
+{
+	//Connection: Keep-Alive
+	char * pConnetion = strstr((char*)strHeader.c_str(),"Connection:");
+	if(pConnetion)
+	{
+		char szConnection[15];
+		sscanf(pConnetion,"Connection: %s",szConnection);
+		if(strcasecmp(szConnection,"Keep-Alive")==0)
+			return true;
+	}
+	return false;
+}
 
 void sendheaders(int client, const char */*filename*/,const char *pszFileType,long long iStreamLen,long long iRangeBegin,long long iRangeEnd) {
     //先返回文件头部信息
@@ -225,8 +238,8 @@ std::string GetResponseHeader( const char */*filename*/,const char *pszFileType,
 
 	strHeader += "Accept-Ranges: bytes\r\n";
 
-	strcpy(buf,"ETag: \"2f38a6cac7cec51:160c\"\r\n");
-	strHeader += buf;
+//	strcpy(buf,"ETag: \"2f38a6cac7cec51:160c\"\r\n");
+//	strHeader += buf;
 	if(bIsPartial)
 	{
 		sprintf(buf,"Content-Range: bytes %lld-%lld/%lld",iRangeBegin,iRangeEnd,iStreamLen);	

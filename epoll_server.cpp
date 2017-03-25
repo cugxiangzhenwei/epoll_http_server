@@ -250,6 +250,7 @@ static void handle_accpet(int epollfd,int listenfd)
 				abort ();
 			}
 			add_event(epollfd,clifd,EPOLLIN|EPOLLET);// set edge-triggled mode
+			printf("当前连接数:%d\n",get_connectionCount());
 		}
   }
 //	printf("handle_accpet call finished!\n");
@@ -332,8 +333,18 @@ static void do_write(int epollfd,int fd,char *)
 	}
 	if(req->m_iState == state_finish)
 	{
-		printf("%s:%d finish request!\n<<<<<<<<<<--------------------------------------\n",req->m_ClientIp,req->m_iClientPort);
-		clean_connection(fd,epollfd);
+		if(req->m_bKeeepAlive)
+		{
+			printf("%s:%d保持连接\n<<<<<<<<<<--------------------------------------\n",req->m_ClientIp,req->m_iClientPort);
+			req->Reset();
+			modify_event(epollfd,fd,EPOLLIN|EPOLLET);	 // modify to read style ,contine to receive header
+		}
+		else
+		{
+			printf("%s:%d关闭连接\n<<<<<<<<<<--------------------------------------\n",req->m_ClientIp,req->m_iClientPort);
+			clean_connection(fd,epollfd);
+		}
+		printf("当前连接数:%d\n",get_connectionCount());
 		return;
 	}
 }

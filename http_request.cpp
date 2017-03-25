@@ -342,6 +342,7 @@ http_Request * add_request(int epollfd,int fd,const char * ip,int iport)
 	req->m_iContent_Length = -1;
 	req->m_iSendCompleteLen = 0;
 	req->m_iClientPort = iport;
+	req->m_bKeeepAlive = false;
 	strcpy(req->m_ClientIp,ip);
 //	bzero(req->m_ClientIp,sizeof(char)*128);
 	bzero(req->m_szURI,sizeof(char)*MAXSIZE);
@@ -362,6 +363,10 @@ void remove_request(int fd)
 	}
 	delete req;
 	g_requestMap.erase(iter);
+}
+int get_connectionCount()
+{
+	return g_requestMap.size();
 }
 int http_Request::read_header()
 {	
@@ -410,6 +415,7 @@ int http_Request::parse_header()
 	printf("headers in:\n%s\n",m_strReceiveHeaders.c_str());
 	std::string strUrl = GetURL(m_strReceiveHeaders);
 	m_http_method = GetMethod(m_strReceiveHeaders);
+	m_bKeeepAlive = IsKeepAlive(m_strReceiveHeaders);
 	if(strUrl.empty())
 	{
 		printf("can't get url from header!\n");
@@ -537,8 +543,8 @@ int http_Request::prepare_get_response()
 	{
 			printf("serve_file：%s\n",strFullPath.c_str());
 			char * pRange = strstr((char*)m_strReceiveHeaders.c_str(),"Range: bytes=");
-			long long iFileOffset = 0;
-			long long iReadBytes  = st.st_size;
+			m_iFileOffset  = 0;
+			m_iReadbytes  = st.st_size;
 			if(pRange)
 			{
 				pRange = pRange + strlen("Range: bytes=");
@@ -547,37 +553,37 @@ int http_Request::prepare_get_response()
 				pEnd = pEnd - 1;
 				if(*pRange == '-') // -500 最后500个字节
 				{
-					sscanf(pRange,"-%lld",&iReadBytes);
-					iFileOffset = st.st_size - iReadBytes;
+					sscanf(pRange,"-%lld",&m_iReadbytes);
+					m_iFileOffset = st.st_size - m_iReadbytes;
 				}
 				else if(*pEnd == '-') // 500- 500字节以后的范围
 				{
-					 sscanf(pRange,"%lld-",&iFileOffset);
-					 iReadBytes =  st.st_size - iFileOffset;
+					 sscanf(pRange,"%lld-",&m_iFileOffset);
+					 m_iReadbytes =  st.st_size - m_iFileOffset;
 				}
 				else // 100-500  100到500个字节之间的范围
 				{
 					long long iEnd = 0;
-					sscanf(pRange,"%lld-%lld",&iFileOffset,&iEnd);
-					iReadBytes = iEnd - iFileOffset;
+					sscanf(pRange,"%lld-%lld",&m_iFileOffset,&iEnd);
+					m_iReadbytes = iEnd - m_iFileOffset;
+					printf("request range:%lld-%lld,total=%lld\n",m_iFileOffset,iEnd,m_iReadbytes);
 				}	 	
 			}
 			std::string strType = getContentTypeFromFileName(strFullPath.c_str());
 			m_pFileServe = fopen(strFullPath.c_str(),"r");
-			m_iFileOffset = iFileOffset;
-			m_iReadbytes =  iReadBytes;
 			m_iFinishedBytes = 0;
 			if(m_pFileServe==NULL)
 			{
 				printf("can't open file %s\n",strFullPath.c_str());
 				return -1;
 			}	
-			if(0!=fseek(m_pFileServe,iFileOffset,SEEK_SET))
+			if(0!=fseek(m_pFileServe,m_iFileOffset,SEEK_SET))
 			{
 				printf("fseek error:%s\n",strerror(errno));
 				return -1;
 			}
-			m_strResponseHeaders = GetResponseHeader(strFullPath.c_str(),strType.c_str(),st.st_size,iFileOffset,iFileOffset + iReadBytes);
+			long long iEnd = m_iFileOffset + m_iReadbytes;
+			m_strResponseHeaders = GetResponseHeader(strFullPath.c_str(),strType.c_str(),m_iReadbytes,m_iFileOffset,iEnd);
 	}
 	m_iState = state_send_response;
 	return 1;
@@ -678,4 +684,16 @@ int http_Request::send_data()
 		m_iState = state_finish;
 	}
 	return iRev;
+}
+void http_Request::Reset()
+{
+	m_iState = state_read_header;
+	m_strReceiveHeaders.clear();
+	m_strResponseHeaders.clear();
+	m_pFileServe = NULL;
+	m_szDataSend = NULL;
+	m_iDataLength = 0;
+	m_iContent_Length = -1;
+	m_iSendCompleteLen = 0;
+	m_bKeeepAlive = false;
 }

@@ -39,7 +39,10 @@ struct http_Request
 	long long m_iFileOffset;
 	long long m_iReadbytes;
 	long long m_iFinishedBytes;
+	// keepAlive是否指定
+	bool m_bKeeepAlive;
 
+	void Reset();
 	int read_header();  // read http head line and headers data
 	int parse_header(); // parse http method type and uri
 	int read_body();// read body data ,eg post data
@@ -54,6 +57,7 @@ struct http_Request
 	int send_data(); // 发送实体数据，可能被多次调用
 };
 
+int get_connectionCount();
 http_Request * find_request(int fd);
 http_Request * add_request(int epollfd,int fd,const char * ip,int iport);
 void remove_request(int fd);
