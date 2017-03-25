@@ -253,7 +253,7 @@ int cat(int client, FILE *resource,long long iReadBytes,long long & iFinished,lo
             else if(errno==EAGAIN) /* EAGAIN : Resource temporarily unavailable*/   
             {  
                 usleep(50);//等待一秒，希望发送缓冲区能得到释放  
-                printf("[SeanSend]error errno==EAGAIN continue\n");  
+    //            printf("[SeanSend]error errno==EAGAIN continue\n");  
                 continue;  
             }  
             else /* 其他错误 没有办法,只好退了*/   

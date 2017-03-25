@@ -81,6 +81,7 @@ int main(int argc,char *argv[])
 		PrintHelp();
 		return 0;
 	}   int  listenfd;
+	printf("server port:%d\n",iport);
     SetHomeDir(strHome.c_str());
 	SetListMode(iMode);
 	//忽略SIGPIPE信号的方法,避免socket关闭后，发送数据SIGPIPE信号导致进程退出
