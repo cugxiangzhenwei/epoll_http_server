@@ -43,6 +43,7 @@ void clean_connection(int fd,int epollfd)
 	close(fd);
 	remove_request(fd);
 	delete_event(epollfd,fd,EPOLLIN);
+	printf("当前连接数:%d\n",get_connectionCount());
 }
 int main(int argc,char *argv[])
 {
@@ -268,6 +269,7 @@ static void do_read(int epollfd,int fd,char *)
 	{
 		if(req->read_header()<=0)
 		{
+			clean_connection(fd,epollfd);
 			return;
 		}
 	}
@@ -344,7 +346,6 @@ static void do_write(int epollfd,int fd,char *)
 			printf("%s:%d关闭连接\n<<<<<<<<<<--------------------------------------\n",req->m_ClientIp,req->m_iClientPort);
 			clean_connection(fd,epollfd);
 		}
-		printf("当前连接数:%d\n",get_connectionCount());
 		return;
 	}
 }

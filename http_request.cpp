@@ -356,11 +356,7 @@ void remove_request(int fd)
 		return;
 	
 	http_Request * req = iter->second;
-	if(req->m_pFileServe)
-	{
-		fclose(req->m_pFileServe);
-		req->m_pFileServe = NULL;
-	}
+	req->Reset();
 	delete req;
 	g_requestMap.erase(iter);
 }
@@ -412,7 +408,7 @@ int http_Request::read_header()
 }
 int http_Request::parse_header()
 {
-	printf("headers in:\n%s\n",m_strReceiveHeaders.c_str());
+	printf("request:%8p,headers in:\n%s\n",this,m_strReceiveHeaders.c_str());
 	std::string strUrl = GetURL(m_strReceiveHeaders);
 	m_http_method = GetMethod(m_strReceiveHeaders);
 	m_bKeeepAlive = IsKeepAlive(m_strReceiveHeaders);
@@ -490,7 +486,7 @@ int http_Request::parse_body()
 int http_Request:: prepare_post_response()
 {
 	printf("prepare_post_response begin call...\n");
-	printf("post request url:%s,post data:%s\n",m_szURI,m_strBodyData.c_str());
+	printf("request:%8p,post request url:%s,post data:%s\n",this,m_szURI,m_strBodyData.c_str());
 	if(strcasecmp(m_szURI,"/login")==0)
 	{
 		std::string strData ="{token:\"1234567890\",id:1,name=\"xiangzhenwei\"}";
@@ -585,6 +581,7 @@ int http_Request::prepare_get_response()
 			long long iEnd = m_iFileOffset + m_iReadbytes;
 			m_strResponseHeaders = GetResponseHeader(strFullPath.c_str(),strType.c_str(),m_iReadbytes,m_iFileOffset,iEnd);
 	}
+	printf("request:%8p,response:\n%s\n",this,m_strResponseHeaders.c_str());
 	m_iState = state_send_response;
 	return 1;
 }
@@ -690,8 +687,16 @@ void http_Request::Reset()
 	m_iState = state_read_header;
 	m_strReceiveHeaders.clear();
 	m_strResponseHeaders.clear();
-	m_pFileServe = NULL;
-	m_szDataSend = NULL;
+	if(m_pFileServe)
+	{
+		fclose(m_pFileServe);
+		m_pFileServe = NULL;
+	}
+	if(m_szDataSend)
+	{
+		free(m_szDataSend);
+		m_szDataSend = NULL;
+	}
 	m_iDataLength = 0;
 	m_iContent_Length = -1;
 	m_iSendCompleteLen = 0;

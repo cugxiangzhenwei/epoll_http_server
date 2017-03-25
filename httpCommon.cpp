@@ -86,6 +86,12 @@ std::string get_oneline(int iSocket,bool & bError)
 	int i= 0;
 //	printf("get_oneline开始获取http头一行数据...\n");
 	char * pData = (char*)malloc(1024);
+	if(pData==NULL)
+	{
+		bError = true;
+		fprintf(stderr,"file:%s,line:%d,function:%s,malloc memory 1024 failed!\n",__FILE__,__LINE__,__func__);
+		return "";
+	}
 	bError = false;
 	while(c!='\n')
 	{
