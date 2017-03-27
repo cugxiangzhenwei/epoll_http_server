@@ -83,3 +83,9 @@ std::string get_404_ResponseHeader(std::string & strPage404Data,const char * uri
 * @return 返回Content-Type类型
 */
 std::string getContentTypeFromFileName(const char* pszFileName);
+/*
+* @brief 获取文件大小的字符串表述，KB,GB,MB
+* @param iFileSize 输入文件的字节数
+* @return 返回转换输出的字符串
+*/
+std::string GetFileSizeStr(long long iFileSize);

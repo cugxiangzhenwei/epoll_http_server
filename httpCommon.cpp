@@ -1,5 +1,6 @@
 #include"httpCommon.h"
 #include<unistd.h>
+#include"global_def.h"
 std::string g_strHomeDir;
 int g_iListMode; // 0-All ,1-images
 const char *HTTP_METHOD_STR[] = {
@@ -297,5 +298,31 @@ std::string get_404_ResponseHeader(std::string & strPage404Data,const char * uri
 	strPage404Data +="</BODY></HTML>\r\n";
 	return strHeader;
 }
-
+std::string GetFileSizeStr(long long iFileSize)
+{
+	// 文件大小
+	// 注: 由于Windows下 wsprintf 不支持 %f 参数,所以只好用 sprintf 了
+	double filesize = 0;
+	char sizeBuf[150];
+	if( iFileSize >= G_BYTES)
+	{
+		filesize = (iFileSize * 1.0) / G_BYTES;
+		sprintf(sizeBuf, "%.2f&nbsp;GB", filesize);
+	}
+	else if( iFileSize >= M_BYTES ) // MB                                                                                                                   
+	{
+		filesize = (iFileSize * 1.0) / M_BYTES;
+		sprintf(sizeBuf, "%.2f&nbsp;MB", filesize);
+	}
+	else if( iFileSize >= K_BYTES ) //KB
+	{
+		filesize = (iFileSize * 1.0) / K_BYTES;
+		sprintf(sizeBuf, "%.2f&nbsp;KB", filesize);
+	}
+	else // Bytes
+	{
+		sprintf(sizeBuf, "%lld&nbsp;Bytes", iFileSize);
+	}
+	return sizeBuf;
+}
 

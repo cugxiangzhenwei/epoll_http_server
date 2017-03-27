@@ -179,6 +179,28 @@ int list_dir_items(char * & pszDataOut,const char * pszWorkDir,const char * url)
 	}
 	else
 	{
+		// 2. 输出路径
+		//(1). 输出第一项 根目录
+		strData +="<A href=\"/\">/</A>";
+		//(2). 其它目录
+		std::string::size_type st = 1;
+		std::string::size_type stNext = 1;
+		std::string strUrl = url;
+		while( (stNext = strUrl.find('/', st)) != std::string::npos)
+		{   
+			std::string strDirName =  strUrl.substr(st, stNext - st + 1); 
+			std::string strSubUrl = strUrl.substr(0, stNext + 1); 
+
+			strData +="&nbsp;|&nbsp;";
+			strData +="<A href=\"";
+			strData +=strSubUrl;
+			strData +="\">";
+			strData +=strDirName;
+			strData +="</A>";
+			// 下一个目录
+			st = stNext + 1;
+		}   
+		strData +="<br /><hr />";
 		bool bIsEmpty = true;
 		while(NULL!=(entry = readdir(pDir)))
 		{
@@ -201,8 +223,9 @@ int list_dir_items(char * & pszDataOut,const char * pszWorkDir,const char * url)
 		  else
 		  {
 				char szBuffer[2048];
-				sprintf(szBuffer,"&nbsp;<A href=\"%s%s\">%400s</A>&nbsp;&nbsp;%ld&nbsp;bytes<br/>"
-				,url,entry->d_name,entry->d_name,statbuf.st_size );
+				std::string strSizeBuf = GetFileSizeStr(statbuf.st_size);
+				sprintf(szBuffer,"&nbsp;&nbsp;<A href=\"%s%s\">%400s</A>&nbsp;&nbsp;%s<br/>"
+				,url,entry->d_name,entry->d_name,strSizeBuf.c_str());
 				strData += szBuffer;
 				strData +="\n";
 				bIsEmpty = false;
