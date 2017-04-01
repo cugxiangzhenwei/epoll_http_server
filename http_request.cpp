@@ -393,9 +393,9 @@ int http_Request::read_header()
 	printf("read_header begin call ...\n");
 	while(1)
 	{
-//		printf("read_heade recv data begin call...\n");
+		//printf("read_heade recv data begin call...\n");
 		int iRev = recv(m_fd,szBuf,1023,0);
-//		printf("read_heade recv return %d\n",iRev);
+		//printf("read_heade recv return %d,data:\n%s\n",iRev,szBuf);
 		if(iRev ==0)
 		{
 			printf("client %s:%d closed!\n",m_ClientIp,m_iClientPort);
@@ -404,8 +404,13 @@ int http_Request::read_header()
 		else if(iRev == -1)
 		{
 			if(EAGAIN == errno || EWOULDBLOCK==errno)
-					break; // header readfinished
-
+			{
+				if(m_strReceiveHeaders.find("\r\n\r\n")!=std::string::npos)
+				{
+					m_iState = state_parse_header; // 接收http头完毕，设置下一阶段为解析http头
+					break;
+				}
+			}
 			printf("%d recv error:%s\n",m_fd,strerror(errno));
 			return -1;
 		}
@@ -413,17 +418,6 @@ int http_Request::read_header()
 		{
 			szBuf[iRev]='\0';
 			m_strReceiveHeaders += szBuf;
-			//printf("header:%s\n",m_strReceiveHeaders.c_str());
-			int iLen = m_strReceiveHeaders.length();
-			char c = szBuf[iRev-1];
-			if(iLen >4 && m_strReceiveHeaders[iLen-2] == '\r' && c=='\n')
-			{
-				if(m_strReceiveHeaders[iLen-3]=='\n' && m_strReceiveHeaders[iLen-4]=='\r')
-				{
-					m_iState = state_parse_header; // 接收http头完毕，设置下一阶段为解析http头
-					break;
-				}
-			}
 		}
 	}
 	printf("read_header return!\n");
@@ -431,7 +425,7 @@ int http_Request::read_header()
 }
 int http_Request::parse_header()
 {
-	printf("request:%8p,headers in:\n%s\n",this,m_strReceiveHeaders.c_str());
+	printf("parse_header begin call...\nrequest:%8p,headers in:\n%s\n",this,m_strReceiveHeaders.c_str());
 	std::string strUrl = GetURL(m_strReceiveHeaders);
 	m_http_method = GetMethod(m_strReceiveHeaders);
 	m_bKeeepAlive = IsKeepAlive(m_strReceiveHeaders);
@@ -445,16 +439,16 @@ int http_Request::parse_header()
 	printf(	"url:%s\nDecodeUrl:%s\nHTTP请求方法类型:%s\n",strUrl.c_str(),m_szURI,HTTP_METHOD_STR[m_http_method]);
 	if(m_http_method == HTTP_POST)
 	{
-		printf("begin to read body data！\n");
 		m_iState = state_read_body;
 	}
 	else
 		m_iState = state_prepare_response;
+	printf("parse_header call finished!\n");
 	return 1;
 }
 int http_Request::read_body()
 {
-	//	printf("read_body begin calll...\n");
+	printf("read_body begin calll...\n");
 	if(m_iContent_Length == -1)
 	{
 		const char * pContentLength = strstr(m_strReceiveHeaders.c_str(),"Content-Length");
@@ -469,10 +463,15 @@ int http_Request::read_body()
 			printf("Content-Length参数未指定！\n");
 		}
 	}
+	int iHeaderEnd = m_strReceiveHeaders.find("\r\n\r\n") + strlen("\r\n\r\n");
+	m_strBodyData += m_strReceiveHeaders.c_str() + iHeaderEnd;
+	printf("body data is:%s\n",m_strBodyData.c_str());
 	char szBuf[1024];
 	while(1)
 	{
+		//printf("read_body recv data begin call...\n");
 		int iRev = recv(m_fd,szBuf,1023,0);
+		//printf("read_body recv return %d,data:\n%s\n",iRev,szBuf);
 		if(iRev ==0)
 		{
 			printf("client %s:%d closed!\n",m_ClientIp,m_iClientPort);
@@ -482,7 +481,14 @@ int http_Request::read_body()
 		else if(iRev == -1)
 		{
 			if(EAGAIN == errno || EWOULDBLOCK==errno)
-				break; // body data read finished
+			{
+				int iLen = m_strBodyData.length();
+				if(iLen == m_iContent_Length && m_iContent_Length >0)
+				{
+					m_iState = state_parse_body;
+				}
+				break;
+			}
 
 			printf("%d recv error:%s\n",m_fd,strerror(errno));
 			close(m_fd);
@@ -497,6 +503,7 @@ int http_Request::read_body()
 				m_iState = state_parse_body;
 		}
 	}
+	printf("read_body  calll finished\n");
 	return 1;
 }
 int http_Request::parse_body()
