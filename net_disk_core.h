@@ -8,6 +8,8 @@
 #include <cppconn/prepared_statement.h> 
 #include<string.h>
 #include <fstream>
+#include<json/reader.h>
+#include<json/writer.h>
 using namespace std;  
 
 class DataBuf : public std::streambuf
@@ -22,7 +24,19 @@ public:
 #define login_URL "/login"
 #define register_URL "/register"
 #define filelist_URL "/filelist"
-#define modify_password__URL "/modify/password"
+#define modify_password_URL "/modify/password"
+
+typedef enum
+{
+	API_NOT_EXIST = -2, 			/*! api not exist */
+	PARSE_JSON_INPUT_FAILED =-1, 	/*! parse input json failed */
+	API_SUCCESS = 0, 				/*! success code */
+	ACCOUNT_AREADY_EXIST =1,		/*! account aready exist! */			
+	ACCOUNT_NOT_EXIST = 2,			/*! account not exist!	*/
+}net_disk_code;
+
+#define str_parse_json_failed	"{code:-1,msg:\"input json parse failed!\"}" 
+#define str_api_not_exist		"{code:-2,msg:\"api not exist!\"}"
 
 bool GetMySQLConnection(const std::string & strConStr,const std::string & strUsrName,const std::string & strPwd);
 void CloseMySQLConnection();
@@ -31,3 +45,4 @@ std::string ProRegisterRequest(const std::string & strBodyData);
 std::string ProLoginRequest(const std::string & strBodyData);
 std::string ProGetFileListRequest(const std::string & strBodyData);
 std::string ProModifyPwdRequest(const std::string & strBodyData);
+bool parse_json_body(Json::Value & valueOut,const std::string & strBodyData);

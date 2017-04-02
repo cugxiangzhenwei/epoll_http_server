@@ -1,5 +1,6 @@
 #include"httpCommon.h"
 #include<unistd.h>
+#include<stdarg.h>
 #include"global_def.h"
 std::string g_strHomeDir;
 int g_iListMode; // 0-All ,1-images
@@ -326,3 +327,44 @@ std::string GetFileSizeStr(long long iFileSize)
 	return sizeBuf;
 }
 
+std::string Format(const char *fmt,va_list args)
+{
+        std::string strResult="";
+        /* 初始时假设我们只需要不超过100字节大小的空间 */
+        int n, size = 100;
+        char *p = NULL;
+        if ( (p = (char *) malloc(size*sizeof(char))) == NULL)
+                return NULL;
+        while (1)
+        {
+                /* 尝试在申请的空间中进行打印操作 */
+                memset(p,0,sizeof(char)*size);
+                n = vsnprintf (p, size, fmt, args);
+                /* 如果vsnprintf调用成功，返回该字符串 */
+                if (n > -1 && n < size)
+                {
+                        strResult = p;
+                        free(p);
+                        break;
+                }
+                /* vsnprintf调用失败(n<0)，或者p的空间不足够容纳size大小的字符串(n>=size)，尝试申请更大的空间*/
+                size *= 2; /* 两倍原来大小的空间 */
+                char * pTmp  = NULL;
+                if ((pTmp = (char *)realloc(p, size*sizeof(char))) == NULL)
+                {
+                        strResult = "";
+                        free(p);
+                        break;
+                }
+                p = pTmp;
+        }
+        return strResult;
+}
+std::string Format(const char *fmt,...)
+{
+  va_list marker; 
+  va_start(marker, fmt); 
+  std::string str = Format(fmt,marker); 
+  va_end(marker); 
+  return str;
+}

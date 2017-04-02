@@ -89,3 +89,5 @@ std::string getContentTypeFromFileName(const char* pszFileName);
 * @return 返回转换输出的字符串
 */
 std::string GetFileSizeStr(long long iFileSize);
+std::string Format(const char *fmt,va_list args);
+std::string Format(const char *fmt,...);

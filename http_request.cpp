@@ -11,6 +11,8 @@
 #include"redis_api.h"
 #include"httpCommon.h"
 #include"UrlCode.h"
+#include"net_disk_core.h"
+
 typedef std::map<int,http_Request *> RequestMapType;
 static RequestMapType g_requestMap;
 
@@ -515,8 +517,14 @@ int http_Request::parse_body()
 }
 int http_Request:: prepare_post_response()
 {
-	printf("prepare_post_response begin call...\n");
-	printf("request:%8p,post request url:%s,post data:%s\n",this,m_szURI,m_strBodyData.c_str());
+//	printf("prepare_post_response begin call...\n");
+//	printf("request:%8p,post request url:%s,post data:%s\n",this,m_szURI,m_strBodyData.c_str());
+	std::string strData = ProNetDiskRequest(m_strBodyData,m_szURI);
+	m_iDataLength = strData.size();
+	m_szDataSend = (char * )malloc(m_iDataLength);
+	strcpy(m_szDataSend,strData.c_str());
+	m_strResponseHeaders = GetResponseHeader("","application/json",m_iDataLength,-1,-1);
+	/*
 	if(strcasecmp(m_szURI,"/login")==0)
 	{
 		std::string strData ="{token:\"1234567890\",id:1,name=\"xiangzhenwei\"}";
@@ -532,7 +540,7 @@ int http_Request:: prepare_post_response()
 		m_iDataLength =  strData.size();
 		m_szDataSend = (char * )malloc(m_iDataLength);
 		strcpy(m_szDataSend,strData.c_str());
-	}	
+	}*/	
 	m_iState =state_send_response;
 	return 1;
 }

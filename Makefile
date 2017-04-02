@@ -1,6 +1,6 @@
 CC = g++
 OBJS = epoll_server.o http_request.o UrlCode.o httpCommon.o fileType.o redis_api.o	net_disk_core.o
-LIBS = -lhiredis -lmysqlcppconn
+LIBS = -lhiredis -lmysqlcppconn	-ljsoncpp
 FLAGS = -W -Wall -g
 TARGET = s
 
