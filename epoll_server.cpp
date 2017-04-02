@@ -13,6 +13,7 @@
 #include"http_request.h"
 #include"httpCommon.h"
 #include"redis_api.h"
+#include"net_disk_core.h"
 //函数声明
 //创建套接字并进行绑定
 static int socket_bind(int port);
@@ -111,6 +112,11 @@ int main(int argc,char *argv[])
 		perror("listen failed :");
 		exit(0);
 	}
+	// 建立与MySQL数据库的连接
+	if(!GetMySQLConnection("tcp://localhost:3306","root","1005150782"))
+	{
+		return -1;
+	}
 	int iProcessCount = 6;
 	int a = 0;
 	while((iProcessCount = iProcessCount/2)>0)
@@ -134,9 +140,10 @@ int main(int argc,char *argv[])
 				printf("main process fork return!\n");
 		}
 	}
-//	freopen("log.txt","w+",stdout);
+ //	freopen("log.txt","w+",stdout);
     do_epoll(listenfd);
 //	fclose(stdout);
+	CloseMySQLConnection(); // 关闭MySQL连接
     return 0;
 }
 

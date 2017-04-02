@@ -1,6 +1,6 @@
 CC = g++
-OBJS = epoll_server.o http_request.o UrlCode.o httpCommon.o fileType.o redis_api.o
-LIBS = -lhiredis
+OBJS = epoll_server.o http_request.o UrlCode.o httpCommon.o fileType.o redis_api.o	net_disk_core.o
+LIBS = -lhiredis -lmysqlcppconn
 FLAGS = -W -Wall -g
 TARGET = s
 
@@ -24,6 +24,9 @@ fileType.o : fileType.cpp
 
 redis_api.o : redis_api.cpp redis_api.h
 	$(CC) $(FLAGS) -c redis_api.cpp
+
+net_disk_core.o : net_disk_core.cpp net_disk_core.h
+	$(CC) $(FLAGS) -c net_disk_core.cpp
 
 clean:
 	rm $(OBJS) $(TARGET)
