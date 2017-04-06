@@ -11,14 +11,12 @@ create table t_user
  user_name varchar(50) not null,
  user_nickname varchar(100) not null,
  user_pwd varchar(15) not null,
- user_sex char(1) not null,
+ user_sex varchar(4) not null,
  user_phone char(11) not null,
  user_mail char(40) not null,
- user_filetable varchar(100) not null,
  user_space int unsigned not null,
- user_root_pxid int unsigned not null,
- create_date datetime not null
- );
+ create_date timestamp NULL DEFAULT CURRENT_TIMESTAMP 
+ )ENGINE=InnoDB DEFAULT CHARSET=GBK;
 
 /*文件列表集合*/
 create table t_filelist

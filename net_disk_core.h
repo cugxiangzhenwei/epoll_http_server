@@ -33,10 +33,13 @@ typedef enum
 	API_SUCCESS = 0, 				/*! success code */
 	ACCOUNT_AREADY_EXIST =1,		/*! account aready exist! */			
 	ACCOUNT_NOT_EXIST = 2,			/*! account not exist!	*/
+	API_LACK_PARAM = 3,				/*! api param lack or empty*/
+	PWD_CONFIRM_NOT_MATCH = 4,      /*! password is not equal to confirmpassword */
+	DATABASE_ERROR = 5 ,			/*! database operator error!*/
 }net_disk_code;
 
-#define str_parse_json_failed	"{code:-1,msg:\"input json parse failed!\"}" 
-#define str_api_not_exist		"{code:-2,msg:\"api not exist!\"}"
+#define str_parse_json_failed	"{code:-1,msg:\"input json parse failed!\"}\n" 
+#define str_api_not_exist		"{code:-2,msg:\"api not exist!\"}\n"
 
 bool GetMySQLConnection(const std::string & strConStr,const std::string & strUsrName,const std::string & strPwd);
 void CloseMySQLConnection();

@@ -214,10 +214,11 @@ int list_dir_items(char * & pszDataOut,const char * pszWorkDir,const char * url)
 		  {
 			  if(strcmp(".",entry->d_name)==0 || strcmp("..",entry->d_name)==0)
 				  continue;
-
+				time_t timep = statbuf.st_mtim.tv_sec;
+				/*用户信息表*/
 				char szBuffer[2048];
-				sprintf(szBuffer,"&nbsp;<A href=\"%s%s/\">%400s</A>&nbsp;&nbsp;[DIR]<br/>"
-				,url,entry->d_name, entry->d_name);
+				sprintf(szBuffer,"&nbsp;&nbsp;%40s<A href=\"%s%s/\">%400s</A>&nbsp;&nbsp;[DIR]<br/>",
+				ctime(&timep),url,entry->d_name, entry->d_name);
 				strData += szBuffer;
 				strData +="\n";
 				bIsEmpty = false;
@@ -226,7 +227,8 @@ int list_dir_items(char * & pszDataOut,const char * pszWorkDir,const char * url)
 		  {
 				char szBuffer[2048];
 				std::string strSizeBuf = GetFileSizeStr(statbuf.st_size);
-				sprintf(szBuffer,"&nbsp;&nbsp;<A href=\"%s%s\">%400s</A>&nbsp;&nbsp;%s<br/>"
+				time_t timep = statbuf.st_mtim.tv_sec;
+				sprintf(szBuffer,"&nbsp;&nbsp;%40s<A href=\"%s%s\">%400s</A>&nbsp;&nbsp;%s<br/>",ctime(&timep)
 				,url,entry->d_name,entry->d_name,strSizeBuf.c_str());
 				strData += szBuffer;
 				strData +="\n";
@@ -521,7 +523,7 @@ int http_Request:: prepare_post_response()
 //	printf("request:%8p,post request url:%s,post data:%s\n",this,m_szURI,m_strBodyData.c_str());
 	std::string strData = ProNetDiskRequest(m_strBodyData,m_szURI);
 	m_iDataLength = strData.size();
-	m_szDataSend = (char * )malloc(m_iDataLength);
+	m_szDataSend = (char * )malloc(m_iDataLength+1); // must malloc size +1 ，the last end character '\0' is needed save
 	strcpy(m_szDataSend,strData.c_str());
 	m_strResponseHeaders = GetResponseHeader("","application/json",m_iDataLength,-1,-1);
 	/*
