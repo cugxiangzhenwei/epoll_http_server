@@ -12,6 +12,8 @@
 #include<json/writer.h>
 using namespace std;  
 
+extern sql::Connection *con;  
+
 class DataBuf : public std::streambuf
 {
 public:

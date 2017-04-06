@@ -1,5 +1,7 @@
 CC = g++
-OBJS = epoll_server.o http_request.o UrlCode.o httpCommon.o fileType.o redis_api.o	net_disk_core.o CodeFun.o
+OBJS = epoll_server.o http_request.o UrlCode.o httpCommon.o fileType.o redis_api.o	net_disk_core.o CodeFun.o \
+		AccountRegister.o AccountLogin.o NetDiskFileList.o ModifyPassword.o
+
 LIBS = -lhiredis -lmysqlcppconn	-ljsoncpp
 FLAGS = -W -Wall -g
 TARGET = s
@@ -30,6 +32,18 @@ net_disk_core.o : net_disk_core.cpp net_disk_core.h
 
 CodeFun.o : CodeFun.cpp CodeFun.h
 	$(CC) $(FLAGS) -c CodeFun.cpp
+
+AccountRegister.o : AccountRegister.cpp
+	$(CC) $(FLAGS) -c AccountRegister.cpp
+
+AccountLogin.o : AccountLogin.cpp
+	$(CC) $(FLAGS) -c AccountLogin.cpp
+
+NetDiskFileList.o : NetDiskFileList.cpp
+	$(CC) $(FLAGS) -c NetDiskFileList.cpp
+
+ModifyPassword.o : ModifyPassword.cpp
+	$(CC) $(FLAGS) -c ModifyPassword.cpp
 
 clean:
 	rm $(OBJS) $(TARGET)
