@@ -78,7 +78,6 @@ std::string ProRegisterRequest(const std::string & strBodyData)
 	std::string strEmail = input["email"].isString() ? input["email"].asString():"";
 	std::string strSex = input["sex"].isString() ? input["sex"].asString():"";
 	Json::Value jout;
-	//strNickName = gbk2utf8(strNickName);
 	if(strUserName.empty() || strPwd.empty() || strConfirmPwd.empty())
 	{
 		jout["code"]  = API_LACK_PARAM;
@@ -138,14 +137,19 @@ std::string ProRegisterRequest(const std::string & strBodyData)
 			pres = pstmt->executeQuery();
 			delete pstmt;
 			delete pres;
-			sprintf(sql,"select user_xid,user_name,user_nickname from t_user where user_name='%s';",strUserName.c_str());
+			sprintf(sql,"select user_xid,user_nickname from t_user where user_name='%s';",strUserName.c_str());
 			pstmt = con->prepareStatement(sql);
 			pres  = pstmt->executeQuery();
-			unsigned int user_xid =  pres->getUInt(0);
-			jout["code"] = 0;
-			jout["data"] = Json::Value(Json::arrayValue);
-			jout["data"]["user_xid"] = user_xid;
-			jout["data"]["user_nickname"] = pres->getString(2).c_str();
+			pres->beforeFirst();
+			if(pres->next())
+			{
+				unsigned int user_xid =  pres->getUInt("user_xid");
+				jout["code"] = 0;
+				jout["data"]["user_xid"] = user_xid;
+				jout["data"]["user_nickname"] = pres->getString("user_nickname").c_str();
+			}
+			delete pstmt;
+			delete pres;
 		}
 		catch(sql::SQLException & e)
 		{
