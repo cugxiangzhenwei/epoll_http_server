@@ -1,3 +1,5 @@
+#ifndef NET_DISK_CORE_H
+#define NET_DISK_CORE_H
 #include<iostream>  
 #include "mysql_driver.h"  
 #include "mysql_connection.h"  
@@ -33,11 +35,12 @@ typedef enum
 	API_NOT_EXIST = -2, 			/*! api not exist */
 	PARSE_JSON_INPUT_FAILED =-1, 	/*! parse input json failed */
 	API_SUCCESS = 0, 				/*! success code */
-	ACCOUNT_AREADY_EXIST =1,		/*! account aready exist! */			
-	ACCOUNT_NOT_EXIST = 2,			/*! account not exist!	*/
-	API_LACK_PARAM = 3,				/*! api param lack or empty*/
-	PWD_CONFIRM_NOT_MATCH = 4,      /*! password is not equal to confirmpassword */
-	DATABASE_ERROR = 5 ,			/*! database operator error!*/
+	ACCOUNT_AREADY_EXIST,			/*! account aready exist! */			
+	ACCOUNT_NOT_EXIST,				/*! account not exist!	*/
+	ACCOUNT_PWD_NOT_MATCH,			/*! account pwasword not match!*/
+	API_LACK_PARAM,					/*! api param lack or empty*/
+	PWD_CONFIRM_NOT_MATCH,  	    /*! password is not equal to confirmpassword */
+	DATABASE_ERROR					/*! database operator error!*/
 }net_disk_code;
 
 #define str_parse_json_failed	"{code:-1,msg:\"input json parse failed!\"}\n" 
@@ -51,3 +54,8 @@ std::string ProLoginRequest(const std::string & strBodyData);
 std::string ProGetFileListRequest(const std::string & strBodyData);
 std::string ProModifyPwdRequest(const std::string & strBodyData);
 bool parse_json_body(Json::Value & valueOut,const std::string & strBodyData);
+
+extern std::string GetNewToken(uint64_t user_xid,const std::string & strDeviceId);
+extern bool IsTokenValid(uint64_t user_xid,const std::string & strDeviceId,const std::string & strToken);
+
+#endif // NET_DISK_CORE_H

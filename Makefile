@@ -1,6 +1,6 @@
 CC = g++
 OBJS = epoll_server.o http_request.o UrlCode.o httpCommon.o fileType.o redis_api.o	net_disk_core.o CodeFun.o \
-		AccountRegister.o AccountLogin.o NetDiskFileList.o ModifyPassword.o
+		AccountRegister.o AccountLogin.o NetDiskFileList.o ModifyPassword.o TokenManager.o	
 
 LIBS = -lhiredis -lmysqlcppconn	-ljsoncpp
 FLAGS = -W -Wall -g
@@ -44,6 +44,9 @@ NetDiskFileList.o : NetDiskFileList.cpp
 
 ModifyPassword.o : ModifyPassword.cpp
 	$(CC) $(FLAGS) -c ModifyPassword.cpp
+
+TokenManager.o : TokenManager.cpp
+	$(CC) $(FLAGS) -c TokenManager.cpp
 
 clean:
 	rm $(OBJS) $(TARGET)
